@@ -55,4 +55,5 @@ docker build \
     -t "$PROJECT_DIR" \
     -f "$DOCKER_DIR/Dockerfile" \
     --build-arg PROJECT_DIR="$PROJECT_DIR" \
+    --build-arg DOCKER_DIR="$DOCKER_DIR" \
     . 
