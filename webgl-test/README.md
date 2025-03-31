@@ -6,18 +6,20 @@ A simple Three.js demo showing a rotating cube using WebGL. This project uses Ty
 
 - Node.js (v23.10.0 or later)
 - npm (comes with Node.js)
+- Docker (optional, for containerized deployment)
 
 ## Getting Started
 
-1. Check Node version:
-```bash
-node --version
-```
-Ensure your Node version is above `v23.10.0` - if so, skip to **step 3**
+### Local Development
 
-2. Install Node.js using `nvm` or your favourite method:
+1. Install Node.js using nvm:
 ```bash
 nvm install --lts
+```
+
+2. Clone the repository and navigate to the project:
+```bash
+cd webgl-test
 ```
 
 3. Install dependencies:
@@ -31,6 +33,20 @@ npm run dev
 ```
 
 The application will be available at http://localhost:5173
+
+### Docker Deployment
+
+1. Build the Docker image:
+```bash
+npm run docker-build
+```
+
+2. Run the container:
+```bash
+docker run -p 8080:80 webgl-test
+```
+
+The application will be available at http://localhost:8080
 
 ## Project Structure
 
@@ -46,11 +62,14 @@ The application will be available at http://localhost:5173
 - **Vite**: Modern build tool that provides fast development server and optimized production builds
 - **TypeScript**: Adds type safety to JavaScript
 - **Three.js**: 3D graphics library for the web
+- **Docker**: Containerization for consistent deployment
+- **Nginx**: Production-grade web server
 
 ### Development Scripts
 - `npm run dev`: Starts the development server with hot module replacement
 - `npm run build`: Creates a production build
 - `npm run preview`: Previews the production build locally
+- `npm run docker-build`: Builds the Docker image using the shared Docker configuration
 
 ### Dependencies
 - `three`: Core Three.js library for 3D graphics
