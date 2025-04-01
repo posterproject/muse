@@ -33,7 +33,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY $DOCKER_DIR/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
-EXPOSE 8080
+EXPOSE 80
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"] 
