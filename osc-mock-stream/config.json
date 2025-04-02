@@ -1,0 +1,5 @@
+{
+    "targetAddress": "127.0.0.1",
+    "targetPort": 9005,
+    "messageRate": 256
+} 
