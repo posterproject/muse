@@ -4,8 +4,10 @@ import { Config } from './config';
 export class OSCListener {
     private udpPort: any;
     private onMessage: (message: any) => void;
+    private config: Config;
 
     constructor(config: Config, onMessage: (message: any) => void) {
+        this.config = config;
         this.onMessage = onMessage;
         this.udpPort = new osc.UDPPort({
             localAddress: config.localAddress,
@@ -17,6 +19,9 @@ export class OSCListener {
         });
 
         this.udpPort.on('message', (oscMessage: any) => {
+            if (this.config.debug) {
+                console.log('OSC Message:', oscMessage);
+            }
             this.onMessage(oscMessage);
         });
 
