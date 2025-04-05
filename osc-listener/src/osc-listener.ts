@@ -1,16 +1,16 @@
 import osc from 'osc';
-import { Config } from './config';
-import { Transformer, LatestValueTransformer } from './transformer/transformer';
-import { Emitter } from './emitter/emitter';
+import { Config, DebugLevel } from './config';
+import { OSCMessage } from './types/osc';
+import { MessageTransformer } from './transformer/transformer';
 
 export class OSCListener {
     private udpPort: any;
-    private transformer: Transformer;
-    private emitter: Emitter;
+    private transformer: MessageTransformer;
+    private config: Config;
 
-    constructor(config: Config, emitter: Emitter, transformer: Transformer = new LatestValueTransformer()) {
+    constructor(config: Config, transformer: MessageTransformer) {
+        this.config = config;
         this.transformer = transformer;
-        this.emitter = emitter;
 
         this.udpPort = new osc.UDPPort({
             localAddress: config.localAddress,
@@ -22,9 +22,15 @@ export class OSCListener {
         });
 
         this.udpPort.on('message', (oscMessage: any) => {
-            this.transformer.process(oscMessage);
-            const transformedMessage = this.transformer.getTransformedData();
-            this.emitter.emit(transformedMessage);
+            if (this.config.debug >= DebugLevel.High) {
+                console.log('OSC Message:', oscMessage);
+            }
+            const message: OSCMessage = {
+                address: oscMessage.address,
+                args: oscMessage.args.map((arg: any) => arg.value),
+                timestamp: Date.now()
+            };
+            this.transformer.addMessage(message);
         });
 
         this.udpPort.on('error', (err: Error) => {
@@ -36,7 +42,5 @@ export class OSCListener {
 
     close() {
         this.udpPort.close();
-        this.emitter.close();
-        this.transformer.clear();
     }
 } 

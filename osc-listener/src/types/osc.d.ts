@@ -34,4 +34,20 @@ declare module 'ws' {
         on(event: 'connection', callback: (ws: WebSocket) => void): void;
         close(): void;
     }
+}
+
+export interface OSCMessage {
+    address: string;
+    args: number[];
+    timestamp: number;
+}
+
+export type TransformFunction = (values: number[]) => number;
+export type AddressBuffer = { values: number[]; timestamps: number[] };
+
+export interface MessageTransformer {
+    addMessage(message: OSCMessage): void;
+    getAddresses(): string[];
+    getTransformedMessages(): Map<string, number>;
+    getTransformedAddress(address: string): number | null;
 } 

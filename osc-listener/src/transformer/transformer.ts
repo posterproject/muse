@@ -1,72 +1,53 @@
-import { Message, Transformer as TransformerInterface } from '../types/message';
+import { OSCMessage, TransformFunction, AddressBuffer } from '../types/osc';
 
-export interface Transformer {
-    process(message: Message): void;
-    getTransformedData(): Message;
-    clear(): void;
+export interface MessageTransformer {
+    addMessage(message: OSCMessage): void;
+    getAddresses(): string[];
+    getTransformedMessages(): Map<string, number>;
+    getTransformedAddress(address: string): number | null;
 }
 
-export class LatestValueTransformer implements TransformerInterface {
-    private buffer: Message[] = [];
-    private lastMessage: Message | null = null;
+export class SimpleTransformer implements MessageTransformer {
+    private buffers: Map<string, AddressBuffer>;
+    private transformFn: TransformFunction;
 
-    process(message: Message): void {
-        this.buffer.push(message);
-        this.lastMessage = message;
+    constructor(transformFn: TransformFunction) {
+        this.buffers = new Map();
+        this.transformFn = transformFn;
     }
 
-    getTransformedData(): Message {
-        return this.lastMessage || {
-            address: '/default',
-            args: []
-        };
-    }
-
-    clear(): void {
-        this.buffer = [];
-        this.lastMessage = null;
-    }
-}
-
-export class AverageTransformer implements TransformerInterface {
-    private buffer: Message[] = [];
-    private readonly maxBufferSize: number;
-
-    constructor(maxBufferSize: number = 10) {
-        this.maxBufferSize = maxBufferSize;
-    }
-
-    process(message: Message): void {
-        this.buffer.push(message);
-        if (this.buffer.length > this.maxBufferSize) {
-            this.buffer.shift();
+    addMessage(message: OSCMessage): void {
+        if (!this.buffers.has(message.address)) {
+            this.buffers.set(message.address, { values: [], timestamps: [] });
+        }
+        const buffer = this.buffers.get(message.address)!;
+        if (message.args.length > 0) {
+            buffer.values.push(message.args[0]);
+            buffer.timestamps.push(message.timestamp);
         }
     }
 
-    getTransformedData(): Message {
-        if (this.buffer.length === 0) {
-            return {
-                address: '/default',
-                args: []
-            };
-        }
-
-        const firstMessage = this.buffer[0];
-        const averagedArgs = firstMessage.args.map((_, index) => {
-            const sum = this.buffer.reduce((acc, msg) => acc + msg.args[index].value, 0);
-            return {
-                type: 'f',
-                value: sum / this.buffer.length
-            };
-        });
-
-        return {
-            address: firstMessage.address,
-            args: averagedArgs
-        };
+    getAddresses(): string[] {
+        return Array.from(this.buffers.keys());
     }
 
-    clear(): void {
-        this.buffer = [];
+    getTransformedMessages(): Map<string, number> {
+        const result = new Map<string, number>();
+        for (const [address, buffer] of this.buffers) {
+            result.set(address, this.transformFn(buffer.values));
+        }
+        return result;
+    }
+
+    getTransformedAddress(address: string): number | null {
+        const buffer = this.buffers.get(address);
+        if (!buffer) return null;
+        return this.transformFn(buffer.values);
+    }
+
+    getBufferContents(bufferName:string): number[] {
+        const buffer = this.buffers.get(bufferName);
+        if (!buffer?.values) return [];
+        return buffer.values;
     }
 } 
