@@ -1,10 +1,9 @@
-import osc from 'osc';
 import { Config, DebugLevel } from './config';
-import { OSCMessage } from './types/osc';
+import { OSCMessage, UDPPort } from './types/osc';
 import { MessageTransformer } from './transformer/transformer';
 
 export class OSCListener {
-    private udpPort: any;
+    private udpPort: UDPPort;
     private transformer: MessageTransformer;
     private config: Config;
 
@@ -12,7 +11,7 @@ export class OSCListener {
         this.config = config;
         this.transformer = transformer;
 
-        this.udpPort = new osc.UDPPort({
+        this.udpPort = new UDPPort({
             localAddress: config.localAddress,
             localPort: config.localPort
         });
