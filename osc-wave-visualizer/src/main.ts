@@ -10,9 +10,9 @@ interface Wave {
 
 const WAVE_NAMES = ['alpha', 'beta', 'delta', 'gamma', 'theta'];
 const WAVE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
-const ZOOM_COEFFICIENT = 200;
-const NUM_POINTS = 100;
-const TRANSITION_DURATION = 1000; // ms
+const NUM_POINTS = 500; // Show 5 seconds of data (100 points per second)
+const TRANSITION_DURATION = 5000; // ms
+const WAVE_HEIGHT = 0.8; // 80% of available vertical space per wave
 
 class WaveVisualizer {
     private canvas: HTMLCanvasElement;
@@ -20,22 +20,25 @@ class WaveVisualizer {
     private waves: Wave[];
     private lastUpdate: number;
     private easing: (t: number) => number;
+    private zoomCoefficient: number;
 
     constructor() {
         this.canvas = document.getElementById('waveCanvas') as HTMLCanvasElement;
         this.ctx = this.canvas.getContext('2d')!;
         this.waves = this.initializeWaves();
         this.lastUpdate = performance.now();
-        this.easing = bezier(0.25, 0.1, 0.25, 1); // Smooth easing function
+        this.easing = bezier(0.25, 0.1, 0.25, 1);
+        this.zoomCoefficient = this.calculateZoomCoefficient();
 
         this.resize();
         window.addEventListener('resize', () => this.resize());
         
-        // Start the animation loop
         requestAnimationFrame(this.animate.bind(this));
-        
-        // Start updating values every second
         setInterval(() => this.updateValues(), 1000);
+    }
+
+    private calculateZoomCoefficient(): number {
+        return (this.canvas.height * WAVE_HEIGHT) / (this.waves.length * 2);
     }
 
     private initializeWaves(): Wave[] {
@@ -51,6 +54,7 @@ class WaveVisualizer {
     private resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.zoomCoefficient = this.calculateZoomCoefficient();
     }
 
     private updateValues() {
@@ -70,26 +74,25 @@ class WaveVisualizer {
             
             // Shift points to the left
             wave.points.shift();
-            wave.points.push(wave.currentValue * ZOOM_COEFFICIENT);
+            wave.points.push(wave.currentValue * this.zoomCoefficient);
         });
     }
 
     private drawWaves() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const waveWidth = this.canvas.width / this.waves.length;
-        const centerY = this.canvas.height / 2;
+        const waveHeight = (this.canvas.height * WAVE_HEIGHT) / this.waves.length;
+        const pointSpacing = this.canvas.width / (NUM_POINTS - 1);
 
         this.waves.forEach((wave, index) => {
-            const startX = index * waveWidth;
-            const pointSpacing = waveWidth / (NUM_POINTS - 1);
+            const centerY = (index + 0.5) * waveHeight + (this.canvas.height * (1 - WAVE_HEIGHT)) / 2;
 
             this.ctx.beginPath();
             this.ctx.strokeStyle = wave.color;
             this.ctx.lineWidth = 2;
 
             wave.points.forEach((point, pointIndex) => {
-                const x = startX + pointIndex * pointSpacing;
+                const x = pointIndex * pointSpacing;
                 const y = centerY - point;
 
                 if (pointIndex === 0) {
@@ -104,7 +107,7 @@ class WaveVisualizer {
             // Draw wave name
             this.ctx.fillStyle = wave.color;
             this.ctx.font = '14px Arial';
-            this.ctx.fillText(wave.name, startX + 10, 20);
+            this.ctx.fillText(wave.name, 10, centerY - waveHeight/2 + 20);
         });
     }
 
@@ -115,7 +118,6 @@ class WaveVisualizer {
     }
 }
 
-// Initialize the visualizer when the page loads
 window.addEventListener('load', () => {
     new WaveVisualizer();
 }); 
