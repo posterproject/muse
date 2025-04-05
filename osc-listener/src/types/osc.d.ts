@@ -42,8 +42,11 @@ export interface OSCMessage {
     timestamp: number;
 }
 
-export type TransformFunction = (values: number[]) => number;
-export type AddressBuffer = { values: number[]; timestamps: number[] };
+export type TransformFunction = (values: number[][]) => number[];
+export type AddressBuffer = { 
+    values: number[][];  // Array of message args arrays
+    timestamps: number[] 
+};
 
 export interface MessageTransformer {
     addMessage(message: OSCMessage): void;

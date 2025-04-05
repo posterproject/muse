@@ -23,13 +23,25 @@ export class OSCListener {
 
         this.udpPort.on('message', (oscMessage: any) => {
             if (this.config.debug >= DebugLevel.High) {
-                console.log('OSC Message:', oscMessage);
+                console.log('Raw OSC Message:', oscMessage);
             }
             const message: OSCMessage = {
                 address: oscMessage.address,
-                args: oscMessage.args.map((arg: any) => arg.value),
+                args: oscMessage.args.map((arg: any) => {
+                    if (typeof arg === 'number') {
+                        return arg;
+                    }
+                    if (this.config.debug >= DebugLevel.High) {
+                        console.log('Non-number value:', arg);
+                        console.log('Non-number value type:', typeof arg);
+                    }
+                    return 0; // Default to 0 if value is not a number
+                }),
                 timestamp: Date.now()
             };
+            if (this.config.debug >= DebugLevel.High) {
+                console.log('Processed Message:', message);
+            }
             this.transformer.addMessage(message);
         });
 

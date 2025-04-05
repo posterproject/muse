@@ -17,8 +17,8 @@ const averageTransform = (values: number[]) => {
     return values.reduce((a, b) => a + b, 0) / values.length;
 };
 
-const lastValTransform = (values: number[]) => {
-    if (values.length === 0) return 0;
+const lastValTransform = (values: number[][]) => {
+    if (values.length === 0) return [0];
     return values[values.length - 1];
 };
 
@@ -72,7 +72,7 @@ app.get('/api/messages', (_, res) => {
     if (defaultConfig.debug >= DebugLevel.Medium) {
         console.log(`Addresses: ${transformer.getAddresses()}`);
         for (const address of transformer.getAddresses()) {
-            console.log(`Buffer contents for ${address}: ${transformer.getBufferContents(address)}`);
+            console.log(`Buffer contents for ${address}:\n${JSON.stringify(transformer.getBufferContents(address))}`);
         }
     }
     const messages = transformer.getTransformedMessages();
@@ -90,10 +90,12 @@ app.get('/api/messages/:address', (req, res) => {
         res.status(404).json({ error: `Address ${req.params.address} not found` });
         return;
     }
-    if (defaultConfig.debug >= DebugLevel.Medium) console.log(`Buffer contents for ${req.params.address}: ${transformer.getBufferContents(req.params.address)}`);
+    if (defaultConfig.debug >= DebugLevel.Medium) {
+        console.log(`Buffer contents for ${req.params.address}:\n${JSON.stringify(transformer.getBufferContents(req.params.address))}`);
+    }
     const value = transformer.getTransformedAddress(req.params.address);
     res.json(value);
-    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed message for ${req.params.address}: ${value}`);
+    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed message for ${req.params.address}: ${JSON.stringify(value)}`);
 });
 
 app.get('/api/health', (_, res) => {
