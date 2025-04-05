@@ -1,0 +1,19 @@
+{
+    "name": "osc-wave-visualizer",
+    "version": "1.0.0",
+    "description": "Waveform visualizer for brainwave data",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "bezier-easing": "^2.1.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.2",
+        "vite": "6.2.4",
+        "@types/bezier-easing": "^2.1.0"
+    }
+} 
