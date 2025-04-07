@@ -1,3 +1,4 @@
+// TODO: Fix emitter implementation - currently unused but needed for future OSC message emission
 import { Message } from '../types/message';
 import osc from 'osc';
 import { WebSocketServer, WebSocket as WSWebSocket } from 'ws';
