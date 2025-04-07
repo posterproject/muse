@@ -32,14 +32,14 @@ const updateStatus = (running: boolean): void => {
     stopButton.disabled = !running;
 };
 
-const updateMessageDisplay = (messages: Record<string, number>): void => {
+const updateMessageDisplay = (messages: Record<string, undefined>): void => {
     if (Object.keys(messages).length === 0) {
         messageDisplay.textContent = 'No messages received yet';
         return;
     }
 
     const formattedMessages = Object.entries(messages)
-        .map(([address, value]) => `${address}: ${value}`)
+        .map(([address, value]) => `${address}: ${JSON.stringify(value)}`)
         .join('\n');
     
     messageDisplay.textContent = formattedMessages;
