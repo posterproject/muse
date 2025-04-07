@@ -30,12 +30,10 @@ export class SimpleTransformer implements MessageTransformer {
         return Array.from(this.buffers.keys());
     }
 
-    getTransformedMessages(): Map<string, number[]> {
-        const result = new Map<string, number[]>();
-        for (const [address, buffer] of this.buffers) {
-            result.set(address, this.transformFn(buffer.values));
-        }
-        return result;
+    getBufferContents(address: string): number[][] {
+        const buffer = this.buffers.get(address);
+        if (!buffer?.values) return [];
+        return buffer.values;
     }
 
     getTransformedAddress(address: string): number[] | null {
@@ -44,9 +42,14 @@ export class SimpleTransformer implements MessageTransformer {
         return this.transformFn(buffer.values);
     }
 
-    getBufferContents(address: string): number[][] {
-        const buffer = this.buffers.get(address);
-        if (!buffer?.values) return [];
-        return buffer.values;
+    getTransformedMessages(): Map<string, number[]> {
+        const result = new Map<string, number[]>();
+        for (const address of this.getAddresses()) {
+            const value = this.getTransformedAddress(address);
+            if (value !== null) {
+                result.set(address, value);
+            }
+        }
+        return result;
     }
-} 
+}

@@ -75,9 +75,9 @@ app.get('/api/messages', (_, res) => {
             console.log(`Buffer contents for ${address}:\n${JSON.stringify(transformer.getBufferContents(address))}`);
         }
     }
-    const messages = transformer.getTransformedMessages();
-    res.json(Object.fromEntries(messages));
-    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed messages:\n${JSON.stringify(messages)}`);
+    const messagesObj = Object.fromEntries(transformer.getTransformedMessages());
+    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed messages:\n${JSON.stringify(messagesObj)}`);
+    res.json(messagesObj);
 });
 
 app.get('/api/messages/:address', (req, res) => {
@@ -94,8 +94,8 @@ app.get('/api/messages/:address', (req, res) => {
         console.log(`Buffer contents for ${req.params.address}:\n${JSON.stringify(transformer.getBufferContents(req.params.address))}`);
     }
     const value = transformer.getTransformedAddress(req.params.address);
-    res.json(value);
     if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed message for ${req.params.address}: ${JSON.stringify(value)}`);
+    res.json(value);
 });
 
 app.get('/api/health', (_, res) => {
@@ -105,4 +105,4 @@ app.get('/api/health', (_, res) => {
 const port = 3001;
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-}); 
+});
