@@ -1,14 +1,111 @@
 # OSC Listener
 
-A simple OSC (Open Sound Control) listener application that allows you to receive and display OSC messages in real-time.
+A Node.js server that listens for OSC messages and provides a REST API to access the transformed data.
+
+## Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Start the development server:
+```bash
+npm run dev
+```
+
+3. Open your browser to `http://localhost:3001`
+
+## API Documentation
+
+### Start OSC Listener
+```http
+POST /api/start
+Content-Type: application/json
+
+{
+    "localAddress": "0.0.0.0",
+    "localPort": 9005,
+    "updateRate": 1
+}
+```
+
+Starts listening for OSC messages on the specified address and port.
+
+### Stop OSC Listener
+```http
+POST /api/stop
+```
+
+Stops the OSC listener and clears all buffers.
+
+### Get Available Addresses
+```http
+GET /api/addresses
+```
+
+Returns an array of all OSC addresses that have received messages.
+
+### Get All Transformed Messages
+```http
+GET /api/messages
+```
+
+Returns a JSON object with transformed values for all addresses:
+```json
+{
+    "/address1": 0.5,
+    "/address2": 0.8
+}
+```
+
+### Get Transformed Message for Specific Address
+```http
+GET /api/messages/:address
+```
+
+Returns the transformed value for a specific OSC address. The address should be URL-encoded if it contains special characters.
+
+Example request:
+```http
+GET /api/messages/%2Falpha
+```
+
+Example response:
+```json
+0.75
+```
+
+If the address hasn't received any messages, returns `null`:
+```json
+null
+```
+
+Error responses:
+- 400 Bad Request: If the address is invalid
+- 404 Not Found: If the address hasn't received any messages
+
+### Health Check
+```http
+GET /api/health
+```
+
+Returns "OK" if the server is running.
+
+## Configuration
+
+- `localAddress`: IP address to listen on (default: "0.0.0.0")
+- `localPort`: UDP port to listen on (default: 9005)
+- `updateRate`: Update rate in Hz (default: 1)
+- `debug`: Enable debug logging (default: false)
 
 ## Features
 
-* Listen for OSC messages on a specified UDP port
-* Real-time message display
-* Configurable update rate
-* Start/Stop functionality
-* Status indicator
+- Listens for OSC messages on any address
+- Maintains separate buffers for each OSC address
+- Provides transformed values through REST API
+- Supports custom transformation functions
+- Real-time updates
 
 ## Prerequisites
 

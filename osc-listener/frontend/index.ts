@@ -22,7 +22,7 @@ if (!startButton || !stopButton || !localAddressInput || !localPortInput ||
 }
 
 let isRunning = false;
-let updateInterval: number;
+let updateInterval: number | undefined;
 
 const updateStatus = (running: boolean): void => {
     isRunning = running;
@@ -32,8 +32,17 @@ const updateStatus = (running: boolean): void => {
     stopButton.disabled = !running;
 };
 
-const updateMessageDisplay = (message: string): void => {
-    messageDisplay.textContent = message;
+const updateMessageDisplay = (messages: Record<string, undefined>): void => {
+    if (Object.keys(messages).length === 0) {
+        messageDisplay.textContent = 'No messages received yet';
+        return;
+    }
+
+    const formattedMessages = Object.entries(messages)
+        .map(([address, value]) => `${address}: ${JSON.stringify(value)}`)
+        .join('\n');
+    
+    messageDisplay.textContent = formattedMessages;
 };
 
 startButton.addEventListener('click', async () => {
@@ -56,10 +65,16 @@ startButton.addEventListener('click', async () => {
             updateStatus(true);
             // Start polling for messages
             updateInterval = window.setInterval(async () => {
-                const messageResponse = await fetch('/api/messages');
-                if (messageResponse.ok) {
-                    const message = await messageResponse.text();
-                    updateMessageDisplay(message);
+                try {
+                    const messageResponse = await fetch('/api/messages');
+                    if (messageResponse.ok) {
+                        const messages = await messageResponse.json();
+                        updateMessageDisplay(messages);
+                    } else {
+                        console.error('Failed to fetch messages:', messageResponse.status);
+                    }
+                } catch (error) {
+                    console.error('Error fetching messages:', error);
                 }
             }, 1000 / config.updateRate);
         } else {
@@ -78,8 +93,11 @@ stopButton.addEventListener('click', async () => {
 
         if (response.ok) {
             updateStatus(false);
-            clearInterval(updateInterval);
-            updateMessageDisplay('Stopped');
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = undefined;
+            }
+            // Don't clear the message display when stopped
         } else {
             console.error('Failed to stop OSC listener');
         }

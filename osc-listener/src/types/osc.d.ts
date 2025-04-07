@@ -1,3 +1,26 @@
+import { Message as OSCMessage } from 'osc';
+
+// Extend the OSC Message type with our timestamp
+export interface OSCMessage {
+    address: string;
+    args: number[];
+    timestamp: number;
+}
+
+export type TransformFunction = (values: number[][]) => number[];
+export type AddressBuffer = { 
+    values: number[][];  // Array of message args arrays
+    timestamps: number[] 
+};
+
+export interface MessageTransformer {
+    addMessage(message: OSCMessage): void;
+    getAddresses(): string[];
+    getTransformedMessages(): Map<string, number>;
+    getTransformedAddress(address: string): number | null;
+}
+
+// Declare the OSC module
 declare module 'osc' {
     export interface Message {
         address: string;
@@ -14,7 +37,7 @@ declare module 'osc' {
 
     export class UDPPort {
         constructor(options: UDPPortOptions);
-        on(event: 'ready' | 'error', callback: (data: any) => void): void;
+        on(event: 'ready' | 'error' | 'message', callback: (data: any) => void): void;
         send(message: Message, address: string, port: number): void;
         open(): void;
         close(): void;
@@ -34,4 +57,36 @@ declare module 'ws' {
         on(event: 'connection', callback: (ws: WebSocket) => void): void;
         close(): void;
     }
+}
+
+// Our own type that matches the OSC module's UDPPort
+export interface UDPPort {
+    constructor(options: { localAddress: string; localPort: number }): void;
+    on(event: 'ready' | 'error' | 'message', callback: (data: any) => void): void;
+    send(message: any, address: string, port: number): void;
+    open(): void;
+    close(): void;
+}
+
+// Re-export the types we need from the osc module
+export { UDPPort, Message, UDPPortOptions } from 'osc';
+
+// Our extended types
+export interface OSCMessage {
+    address: string;
+    args: number[];
+    timestamp: number;
+}
+
+export type TransformFunction = (values: number[][]) => number[];
+export type AddressBuffer = { 
+    values: number[][];  // Array of message args arrays
+    timestamps: number[] 
+};
+
+export interface MessageTransformer {
+    addMessage(message: OSCMessage): void;
+    getAddresses(): string[];
+    getTransformedMessages(): Map<string, number>;
+    getTransformedAddress(address: string): number | null;
 } 

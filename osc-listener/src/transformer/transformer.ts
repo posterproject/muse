@@ -1,72 +1,55 @@
-import { Message, Transformer as TransformerInterface } from '../types/message';
+import { OSCMessage, TransformFunction, AddressBuffer } from '../types/osc';
 
-export interface Transformer {
-    process(message: Message): void;
-    getTransformedData(): Message;
-    clear(): void;
+export interface MessageTransformer {
+    addMessage(message: OSCMessage): void;
+    getAddresses(): string[];
+    getTransformedMessages(): Map<string, number[]>;
+    getTransformedAddress(address: string): number[] | null;
+    getBufferContents(address: string): number[][];
 }
 
-export class LatestValueTransformer implements TransformerInterface {
-    private buffer: Message[] = [];
-    private lastMessage: Message | null = null;
+export class SimpleTransformer implements MessageTransformer {
+    private buffers: Map<string, AddressBuffer>;
+    private transformFn: TransformFunction;
 
-    process(message: Message): void {
-        this.buffer.push(message);
-        this.lastMessage = message;
+    constructor(transformFn: TransformFunction) {
+        this.buffers = new Map();
+        this.transformFn = transformFn;
     }
 
-    getTransformedData(): Message {
-        return this.lastMessage || {
-            address: '/default',
-            args: []
-        };
+    addMessage(message: OSCMessage): void {
+        if (!this.buffers.has(message.address)) {
+            this.buffers.set(message.address, { values: [], timestamps: [] });
+        }
+        const buffer = this.buffers.get(message.address)!;
+        buffer.values.push(message.args);
+        buffer.timestamps.push(message.timestamp);
     }
 
-    clear(): void {
-        this.buffer = [];
-        this.lastMessage = null;
+    getAddresses(): string[] {
+        return Array.from(this.buffers.keys());
+    }
+
+    getBufferContents(address: string): number[][] {
+        const buffer = this.buffers.get(address);
+        if (!buffer?.values) return [];
+        return buffer.values;
+    }
+
+    getTransformedAddress(address: string): number[] | null {
+        const buffer = this.buffers.get(address);
+        if (!buffer) return null;
+        return this.transformFn(buffer.values);
+    }
+
+    getTransformedMessages(): Map<string, number[]> {
+        const result = new Map<string, number[]>();
+        for (const address of this.getAddresses()) {
+            const value = this.getTransformedAddress(address);
+            if (value !== null) {
+                result.set(address, value);
+            }
+        }
+        return result;
     }
 }
-
-export class AverageTransformer implements TransformerInterface {
-    private buffer: Message[] = [];
-    private readonly maxBufferSize: number;
-
-    constructor(maxBufferSize: number = 10) {
-        this.maxBufferSize = maxBufferSize;
-    }
-
-    process(message: Message): void {
-        this.buffer.push(message);
-        if (this.buffer.length > this.maxBufferSize) {
-            this.buffer.shift();
-        }
-    }
-
-    getTransformedData(): Message {
-        if (this.buffer.length === 0) {
-            return {
-                address: '/default',
-                args: []
-            };
-        }
-
-        const firstMessage = this.buffer[0];
-        const averagedArgs = firstMessage.args.map((_, index) => {
-            const sum = this.buffer.reduce((acc, msg) => acc + msg.args[index].value, 0);
-            return {
-                type: 'f',
-                value: sum / this.buffer.length
-            };
-        });
-
-        return {
-            address: firstMessage.address,
-            args: averagedArgs
-        };
-    }
-
-    clear(): void {
-        this.buffer = [];
-    }
-} 
