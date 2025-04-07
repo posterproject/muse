@@ -97,7 +97,7 @@ stopButton.addEventListener('click', async () => {
                 clearInterval(updateInterval);
                 updateInterval = undefined;
             }
-            updateMessageDisplay({});
+            // Don't clear the message display when stopped
         } else {
             console.error('Failed to stop OSC listener');
         }
