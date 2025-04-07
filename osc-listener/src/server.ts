@@ -11,15 +11,59 @@ app.use(express.json());
 let oscListener: OSCListener | null = null;
 let transformer: SimpleTransformer | null = null;
 
-// Example transform function - can be replaced with any function that processes arrays of numbers
-const averageTransform = (values: number[]) => {
-    if (values.length === 0) return 0;
-    return values.reduce((a, b) => a + b, 0) / values.length;
+const primaryWaveChannels = ['alpha', 'beta', 'gamma', 'delta', 'theta'];
+
+const averageTransform = (values: number[][]): number[] => {
+    if (values.length === 0) return [];
+    
+    // Use first array as reference length
+    const referenceLength = values[0].length;
+    
+    // Initialize accumulator with zeros and counts
+    const initial = {
+        sums: new Array(referenceLength).fill(0),
+        counts: new Array(referenceLength).fill(0)
+    };
+    
+    // Process all arrays
+    const { sums, counts } = values.reduce((acc, array) => {
+        // For each column up to the reference length
+        for (let i = 0; i < referenceLength; i++) {
+            if (i < array.length) {
+                acc.sums[i] += array[i];
+                acc.counts[i]++;
+            }
+        }
+        return acc;
+    }, initial);
+    
+    // Compute averages
+    return sums.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
 };
 
 const lastValTransform = (values: number[][]) => {
     if (values.length === 0) return [0];
     return values[values.length - 1];
+};
+
+const elementTransformAvgWaveData = (values: number[], address: string): number[] => {
+    // Check if this is a primary wave channel
+    const isPrimaryWave = primaryWaveChannels.some(channel => 
+        address.toLowerCase().includes(channel)
+    );
+    
+    if (!isPrimaryWave) {
+        return values; // Return unchanged for non-primary channels
+    }
+    
+    // For primary waves, calculate average of non-zero values
+    const nonZeroValues = values.filter(v => v !== 0);
+    if (nonZeroValues.length === 0) {
+        return [0]; // Return [0] if all values are zero
+    }
+    
+    const average = nonZeroValues.reduce((sum, val) => sum + val, 0) / nonZeroValues.length;
+    return [average];
 };
 
 app.post('/api/start', (req, res) => {
@@ -32,8 +76,7 @@ app.post('/api/start', (req, res) => {
     };
 
     try {
-        //transformer = new SimpleTransformer(averageTransform);
-        transformer = new SimpleTransformer(lastValTransform); // for testing
+        transformer = new SimpleTransformer(averageTransform, elementTransformAvgWaveData);
         oscListener = new OSCListener(config, transformer);
         res.json({ success: true });
     } catch (error) {
