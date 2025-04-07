@@ -56,6 +56,12 @@ let config = {
     SUNRAYS: true,
     SUNRAYS_RESOLUTION: 196,
     SUNRAYS_WEIGHT: 1.0,
+    // EEG wave parameters
+    EEG_ALPHA: 0.5,    // Normalized value between 0-1
+    EEG_BETA: 0.5,     // Normalized value between 0-1
+    EEG_THETA: 0.5,    // Normalized value between 0-1
+    EEG_GAMMA: 0.5,    // Normalized value between 0-1
+    EEG_DELTA: 0.5,    // Normalized value between 0-1
 };
 
 interface Pointer {
@@ -1457,6 +1463,48 @@ function resizeDoubleFBO (target: DoubleFBO, w: number, h: number, internalForma
     target.texelSizeX = 1.0 / w;
     target.texelSizeY = 1.0 / h;
     return target;
+}
+
+// EEG wave mapping functions
+function updateEEGParameters(alpha: number, beta: number, theta: number, gamma: number, delta: number) {
+    // Alpha waves (8-13 Hz) - Velocity dissipation
+    config.VELOCITY_DISSIPATION = 0.2 + (1 - alpha) * 0.3; // Range: 0.2-0.5
+    
+    // Beta waves (13-30 Hz) - Curl/vorticity
+    config.CURL = 30 + beta * 70; // Range: 30-100
+    
+    // Theta waves (4-8 Hz) - Bloom intensity
+    config.BLOOM_INTENSITY = 0.8 + theta * 0.4; // Range: 0.8-1.2
+    
+    // Gamma waves (30-100 Hz) - Splat force
+    config.SPLAT_FORCE = 6000 + gamma * 4000; // Range: 6000-10000
+    
+    // Delta waves (0.5-4 Hz) - Density dissipation
+    config.DENSITY_DISSIPATION = 1.0 + delta * 0.5; // Range: 1.0-1.5
+}
+
+// Example OSC message handler
+function handleOSCMessage(address: string, args: any[]) {
+    if (address === '/muse/elements/alpha_relative') {
+        config.EEG_ALPHA = args[0];
+    } else if (address === '/muse/elements/beta_relative') {
+        config.EEG_BETA = args[0];
+    } else if (address === '/muse/elements/theta_relative') {
+        config.EEG_THETA = args[0];
+    } else if (address === '/muse/elements/gamma_relative') {
+        config.EEG_GAMMA = args[0];
+    } else if (address === '/muse/elements/delta_relative') {
+        config.EEG_DELTA = args[0];
+    }
+    
+    // Update all EEG parameters
+    updateEEGParameters(
+        config.EEG_ALPHA,
+        config.EEG_BETA,
+        config.EEG_THETA,
+        config.EEG_GAMMA,
+        config.EEG_DELTA
+    );
 }
 
 // Start the simulation loop
