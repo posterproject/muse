@@ -16,5 +16,5 @@ export const defaultConfig: Config = {
     localAddress: '0.0.0.0',
     localPort: 9005,
     updateRate: 1,
-    debug: DebugLevel.Medium
+    debug: DebugLevel.High
 }; 

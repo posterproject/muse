@@ -1,0 +1,131 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+#info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+    max-width: 300px;
+    z-index: 10;
+}
+
+#connection-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.connected {
+    background-color: rgba(0, 128, 0, 0.7);
+}
+
+.disconnected {
+    background-color: rgba(255, 0, 0, 0.7);
+}
+
+/* State indicator panel */
+#state-panel {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 10;
+}
+
+.state-indicator {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.state-indicator .label {
+    width: 80px;
+}
+
+.state-indicator .value {
+    width: 50px;
+    text-align: right;
+}
+
+.state-indicator .bar {
+    margin: 0 10px;
+    height: 10px;
+    width: 100px;
+    background-color: #333;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.state-indicator .bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease-out;
+}
+
+/* Colors for each brainwave type */
+.delta .bar-fill { background-color: #4287f5; }
+.theta .bar-fill { background-color: #42c5f5; }
+.alpha .bar-fill { background-color: #42f5a7; }
+.beta .bar-fill { background-color: #f5d742; }
+.gamma .bar-fill { background-color: #f54242; }
+
+/* Connection control panel */
+#connection-panel {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 10;
+}
+
+button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    margin: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #666;
+}
+
+button:active {
+    background-color: #888;
+}
+
+input {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}

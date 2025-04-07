@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Muse Brainwave Visualization</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="info">
+        <h2>Muse Brainwave Visualization</h2>
+        <p>This visualization shows real-time brainwave activity from a Muse headband.</p>
+        <p>
+            <strong>Colors indicate different mental states:</strong><br>
+            <span style="color: #4287f5;">▮</span> Delta: Deep sleep, unconscious<br>
+            <span style="color: #42c5f5;">▮</span> Theta: Drowsy, meditation<br>
+            <span style="color: #42f5a7;">▮</span> Alpha: Relaxed, calm<br>
+            <span style="color: #f5d742;">▮</span> Beta: Alert, focused<br>
+            <span style="color: #f54242;">▮</span> Gamma: Highly engaged, agitated
+        </p>
+        <p>Click the top right indicators to hide this panel.</p>
+    </div>
+    
+    <div id="connection-status" class="disconnected">
+        Disconnected
+    </div>
+    
+    <div id="state-panel">
+        <div class="state-indicator delta">
+            <div class="label">Delta</div>
+            <div class="bar"><div class="bar-fill" style="width: 0%"></div></div>
+            <div class="value">0.00</div>
+        </div>
+        <div class="state-indicator theta">
+            <div class="label">Theta</div>
+            <div class="bar"><div class="bar-fill" style="width: 0%"></div></div>
+            <div class="value">0.00</div>
+        </div>
+        <div class="state-indicator alpha">
+            <div class="label">Alpha</div>
+            <div class="bar"><div class="bar-fill" style="width: 0%"></div></div>
+            <div class="value">0.00</div>
+        </div>
+        <div class="state-indicator beta">
+            <div class="label">Beta</div>
+            <div class="bar"><div class="bar-fill" style="width: 0%"></div></div>
+            <div class="value">0.00</div>
+        </div>
+        <div class="state-indicator gamma">
+            <div class="label">Gamma</div>
+            <div class="bar"><div class="bar-fill" style="width: 0%"></div></div>
+            <div class="value">0.00</div>
+        </div>
+    </div>
+    
+    <div id="connection-panel">
+        <h3>OSC Connection</h3>
+        <div>
+            <label for="osc-server">Server URL:</label>
+            <input type="text" id="osc-server" value="http://localhost:3001" />
+        </div>
+        <div>
+            <button id="connect-button">Connect</button>
+            <button id="disconnect-button">Disconnect</button>
+        </div>
+    </div>
+
+    <!-- Load Three.js from CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.module.js"
+        }
+    }
+    </script>
+    
+    <!-- Our visualization scripts -->
+    <script type="module" src="src/main.js"></script>
+
+</body>
+</html>
