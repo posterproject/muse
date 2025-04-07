@@ -8,6 +8,7 @@ export interface OSCMessage {
 }
 
 export type TransformFunction = (values: number[][]) => number[];
+export type ElementTransformFunction = (value: number[], address: string) => number[];
 export type AddressBuffer = { 
     values: number[][];  // Array of message args arrays
     timestamps: number[] 
@@ -79,6 +80,7 @@ export interface OSCMessage {
 }
 
 export type TransformFunction = (values: number[][]) => number[];
+export type ElementTransformFunction = (value: number[], address: string) => number[];
 export type AddressBuffer = { 
     values: number[][];  // Array of message args arrays
     timestamps: number[] 
