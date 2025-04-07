@@ -42,6 +42,10 @@ class OSCMockStream {
 
         this.udpPort.on('error', (err: Error) => {
             console.error('OSC error:', err);
+            if (err.message && err.message.includes('not recognized as a valid OSC message')) {
+                console.error('This is likely due to an issue with message formatting.');
+                console.error('Make sure all OSC addresses start with a / and the message is correctly structured.');
+            }
         });
 
         this.udpPort.open();
@@ -100,8 +104,14 @@ class OSCMockStream {
                         const value = parseFloat(values[j]);
                         
                         if (!isNaN(value) && headers[j]) {
+                            let address = headers[j];
+                            // Ensure the address starts with a slash for OSC compatibility
+                            if (!address.startsWith('/')) {
+                                address = '/' + address;
+                            }
+                            
                             messages.push({
-                                address: headers[j],
+                                address: address,
                                 args: [{ 
                                     type: 'f', 
                                     value: value 
@@ -137,7 +147,13 @@ class OSCMockStream {
                 }))
                 .on('data', (record: string[]) => {
                     // Skip timestamp (first column) and process the rest
-                    const address = record[1]?.trim();
+                    let address = record[1]?.trim() || '/mock/data';
+                    
+                    // Ensure the address starts with a slash for OSC compatibility
+                    if (!address.startsWith('/')) {
+                        address = '/' + address;
+                    }
+                    
                     const values = record.slice(2).map(value => parseFloat(value.trim()) || 0);
 
                     const message = {
