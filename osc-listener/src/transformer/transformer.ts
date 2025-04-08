@@ -1,4 +1,4 @@
-import { OSCMessage, TransformFunction, AddressBuffer } from '../types/osc';
+import { OSCMessage, TransformFunction, ElementTransformFunction, AddressBuffer } from '../types/osc';
 
 export interface MessageTransformer {
     addMessage(message: OSCMessage): void;
@@ -11,10 +11,12 @@ export interface MessageTransformer {
 export class SimpleTransformer implements MessageTransformer {
     private buffers: Map<string, AddressBuffer>;
     private transformFn: TransformFunction;
+    private elementTransformFn: ElementTransformFunction;
 
-    constructor(transformFn: TransformFunction) {
+    constructor(transformFn: TransformFunction, elementTransformFn?: ElementTransformFunction) {
         this.buffers = new Map();
         this.transformFn = transformFn;
+        this.elementTransformFn = elementTransformFn || ((value: number[]) => value);
     }
 
     addMessage(message: OSCMessage): void {
@@ -39,7 +41,8 @@ export class SimpleTransformer implements MessageTransformer {
     getTransformedAddress(address: string): number[] | null {
         const buffer = this.buffers.get(address);
         if (!buffer) return null;
-        return this.transformFn(buffer.values);
+        const transformedValues = buffer.values.map(value => this.elementTransformFn(value, address));
+        return this.transformFn(transformedValues);
     }
 
     getTransformedMessages(): Map<string, number[]> {

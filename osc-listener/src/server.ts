@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import { OSCListener } from './osc-listener';
 import { Config, defaultConfig, DebugLevel } from './config';
+import { OSCListener } from './osc-listener';
 import { SimpleTransformer } from './transformer/transformer';
+import { TransformerFactory } from './transformer/transformer-factory';
 
 const app = express();
 app.use(cors());
@@ -11,29 +12,18 @@ app.use(express.json());
 let oscListener: OSCListener | null = null;
 let transformer: SimpleTransformer | null = null;
 
-// Example transform function - can be replaced with any function that processes arrays of numbers
-const averageTransform = (values: number[]) => {
-    if (values.length === 0) return 0;
-    return values.reduce((a, b) => a + b, 0) / values.length;
-};
-
-const lastValTransform = (values: number[][]) => {
-    if (values.length === 0) return [0];
-    return values[values.length - 1];
-};
-
 app.post('/api/start', (req, res) => {
     console.log('Received start request:', req.body);
     const config: Config = {
         localAddress: req.body.localAddress,
         localPort: req.body.localPort,
         updateRate: req.body.updateRate,
+        serverPort: defaultConfig.serverPort,
         debug: defaultConfig.debug
     };
 
     try {
-        //transformer = new SimpleTransformer(averageTransform);
-        transformer = new SimpleTransformer(lastValTransform); // for testing
+        transformer = TransformerFactory.createAverageTransformer();
         oscListener = new OSCListener(config, transformer);
         res.json({ success: true });
     } catch (error) {
@@ -43,16 +33,13 @@ app.post('/api/start', (req, res) => {
 });
 
 app.post('/api/stop', (_, res) => {
-    try {
-        if (oscListener) {
-            oscListener.close();
-            oscListener = null;
-            transformer = null;
-        }
+    if (oscListener) {
+        oscListener.close();
+        oscListener = null;
+        transformer = null;
         res.json({ success: true });
-    } catch (error) {
-        console.error('Error stopping OSC listener:', error);
-        res.status(500).json({ error: String(error) });
+    } else {
+        res.status(400).json({ error: 'OSC listener not running' });
     }
 });
 
@@ -82,27 +69,25 @@ app.get('/api/messages', (_, res) => {
 
 app.get('/api/messages/:address', (req, res) => {
     if (!transformer) {
-        res.json(null);
+        res.status(404).json({ error: 'No transformer available' });
         return;
     }
-    const addresses = transformer.getAddresses();
-    if (!addresses.includes(req.params.address)) {
-        res.status(404).json({ error: `Address ${req.params.address} not found` });
+    const value = transformer.getTransformedAddress(req.params.address);
+    if (value === null) {
+        res.status(404).json({ error: 'Address not found' });
         return;
     }
     if (defaultConfig.debug >= DebugLevel.Medium) {
         console.log(`Buffer contents for ${req.params.address}:\n${JSON.stringify(transformer.getBufferContents(req.params.address))}`);
     }
-    const value = transformer.getTransformedAddress(req.params.address);
     if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed message for ${req.params.address}: ${JSON.stringify(value)}`);
     res.json(value);
 });
 
 app.get('/api/health', (_, res) => {
-    res.send('OK');
+    res.status(200).send('OK');
 });
 
-const port = 3001;
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+app.listen(defaultConfig.serverPort, () => {
+    console.log(`Server running on port ${defaultConfig.serverPort}`);
 });
