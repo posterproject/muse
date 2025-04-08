@@ -1,7 +1,7 @@
 import { parse } from 'csv-parse';
 import { createReadStream, readFileSync } from 'fs';
 import osc from 'osc';
-import { join } from 'path';
+import { join, extname } from 'path';
 
 interface Config {
     targetAddress: string;
@@ -18,11 +18,15 @@ const config: Config = {
     csvPath: process.argv[2] // Optional CSV file path from command line
 };
 
+// Define data format types
+type DataFormat = 'standard' | 'columns';
+
 class OSCMockStream {
     private udpPort: any;
     private messageQueue: any[] = [];
     private isRunning: boolean = false;
     private messageInterval: number;
+    private dataFormat: DataFormat = 'standard';
 
     constructor(config: Config) {
         this.messageInterval = 1000 / config.messageRate;
@@ -38,12 +42,97 @@ class OSCMockStream {
 
         this.udpPort.on('error', (err: Error) => {
             console.error('OSC error:', err);
+            if (err.message && err.message.includes('not recognized as a valid OSC message')) {
+                console.error('This is likely due to an issue with message formatting.');
+                console.error('Make sure all OSC addresses start with a / and the message is correctly structured.');
+            }
         });
 
         this.udpPort.open();
     }
 
+    private detectDataFormat(filePath: string): DataFormat {
+        // Check file extension or name to determine format
+        if (filePath.endsWith('.columns')) {
+            return 'columns';
+        }
+        return 'standard';
+    }
+
     private async loadCSVData(csvPath: string): Promise<void> {
+        this.dataFormat = this.detectDataFormat(csvPath);
+        console.log(`Detected data format: ${this.dataFormat}`);
+        
+        if (this.dataFormat === 'columns') {
+            return this.loadColumnsData(csvPath);
+        } else {
+            return this.loadStandardCSVData(csvPath);
+        }
+    }
+
+    private async loadColumnsData(csvPath: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            let fileContent: string;
+            try {
+                fileContent = readFileSync(csvPath, 'utf-8');
+            } catch (err) {
+                return reject(err);
+            }
+            
+            // Split file into lines and filter out empty lines
+            const lines = fileContent.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0 && !line.startsWith('#'));
+            
+            if (lines.length < 2) {
+                return reject(new Error('File must contain at least a header line and one data line'));
+            }
+            
+            // Process header line to get channel names
+            const headers = lines[0].split(/\s+/).filter(item => item.trim() !== '');
+            console.log(`Detected ${headers.length} channels: ${headers.slice(0, 5).join(', ')}...`);
+            
+            // Process data lines
+            const records: any[] = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(/\s+/).filter(item => item.trim() !== '');
+                
+                if (values.length > 0) {
+                    const messages = [];
+                    
+                    for (let j = 0; j < Math.min(headers.length, values.length); j++) {
+                        const value = parseFloat(values[j]);
+                        
+                        if (!isNaN(value) && headers[j]) {
+                            let address = headers[j];
+                            // Ensure the address starts with a slash for OSC compatibility
+                            if (!address.startsWith('/')) {
+                                address = '/' + address;
+                            }
+                            
+                            messages.push({
+                                address: address,
+                                args: [{ 
+                                    type: 'f', 
+                                    value: value 
+                                }]
+                            });
+                        }
+                    }
+                    
+                    if (messages.length > 0) {
+                        records.push(messages);
+                    }
+                }
+            }
+            
+            this.messageQueue = records;
+            console.log(`Loaded ${records.length} message batches from columns format`);
+            resolve();
+        });
+    }
+
+    private async loadStandardCSVData(csvPath: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const records: any[] = [];
             createReadStream(csvPath)
@@ -58,7 +147,13 @@ class OSCMockStream {
                 }))
                 .on('data', (record: string[]) => {
                     // Skip timestamp (first column) and process the rest
-                    const address = record[1]?.trim();
+                    let address = record[1]?.trim() || '/mock/data';
+                    
+                    // Ensure the address starts with a slash for OSC compatibility
+                    if (!address.startsWith('/')) {
+                        address = '/' + address;
+                    }
+                    
                     const values = record.slice(2).map(value => parseFloat(value.trim()) || 0);
 
                     const message = {
@@ -72,7 +167,7 @@ class OSCMockStream {
                 })
                 .on('end', () => {
                     this.messageQueue = records;
-                    console.log(`Loaded ${records.length} messages from CSV`);
+                    console.log(`Loaded ${records.length} messages from standard CSV`);
                     resolve();
                 })
                 .on('error', reject);
@@ -96,7 +191,7 @@ class OSCMockStream {
             try {
                 await this.loadCSVData(config.csvPath);
             } catch (error) {
-                console.error('Error loading CSV:', error);
+                console.error('Error loading data:', error);
                 process.exit(1);
             }
         }
@@ -111,7 +206,18 @@ class OSCMockStream {
         // If we have records, use them in a loop
         if (this.messageQueue.length > 0) {
             const message = this.messageQueue.shift()!;
-            this.udpPort.send(message, config.targetAddress, config.targetPort);
+            
+            if (this.dataFormat === 'columns') {
+                // For columns format, each message is an array of messages
+                // We need to send them all at once
+                for (const individualMessage of message) {
+                    this.udpPort.send(individualMessage, config.targetAddress, config.targetPort);
+                }
+            } else {
+                // Standard format - just send the single message
+                this.udpPort.send(message, config.targetAddress, config.targetPort);
+            }
+            
             // Add the message back to the end of the queue
             this.messageQueue.push(message);
         } else {
