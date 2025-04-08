@@ -23,8 +23,9 @@ npm run dev
 
 ## Features
 
-- Five distinct waves (alpha, beta, delta, gamma, theta)
-- Smooth bezier-curve transitions
+- Five distinct wave types (alpha, beta, delta, gamma, theta)
+- Sine wave visualization that peaks at data values and returns to zero
+- Complete sine cycle synchronized with data update interval
 - Real-time data from OSC Listener
 - Fallback to alternative data sources if primary source unavailable
 - Responsive canvas that adjusts to window size
@@ -38,9 +39,20 @@ The visualizer now connects to the OSC Listener service and requests data from:
 
 This allows compatibility with different Muse headband data formats.
 
+## Visualization Behavior
+
+Each wave is displayed as a sine wave with the following characteristics:
+- The amplitude is modulated by the incoming data value from the OSC Listener
+- The sine wave completes one full cycle during each update interval
+- At the beginning of each update, the wave starts at zero
+- The wave peaks at the target value in the middle of the cycle
+- The wave returns to zero by the end of the cycle
+
+This creates a pulsing effect that represents the intensity of each brain wave type.
+
 ## Configuration
 
 - `UPDATE_INTERVAL`: Frequency to fetch new data (default: 1000ms)
-- `TRANSITION_DURATION`: Duration of transitions in milliseconds (default: 5000)
+- `SINE_PERIOD`: Duration of one complete sine wave cycle (default: same as UPDATE_INTERVAL)
 - `NUM_POINTS`: Number of points in each wave (default: 500)
 - `WAVE_HEIGHT`: Percentage of vertical space for waves (default: 80%) 
