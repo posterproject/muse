@@ -25,7 +25,7 @@ app.post('/api/start', (req, res) => {
     };
 
     try {
-        transformer = TransformerFactory.createAverageTransformer();
+        transformer = TransformerFactory.createLastValueTransformer();
         oscListener = new OSCListener(config, transformer);
         res.json({ success: true });
     } catch (error) {

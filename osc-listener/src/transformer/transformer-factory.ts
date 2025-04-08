@@ -1,4 +1,3 @@
-import { TransformFunction, ElementTransformFunction } from '../types/osc';
 import { SimpleTransformer } from './transformer';
 
 const primaryWaveChannels = ['alpha', 'beta', 'gamma', 'delta', 'theta'];
