@@ -3,6 +3,7 @@ interface Config {
     localAddress: string;
     localPort: number;
     updateRate: number;
+    recordData: boolean;
 }
 
 // Get DOM elements with null checks
@@ -11,13 +12,14 @@ const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
 const localAddressInput = document.getElementById('localAddress') as HTMLInputElement;
 const localPortInput = document.getElementById('localPort') as HTMLInputElement;
 const updateRateInput = document.getElementById('updateRate') as HTMLInputElement;
+const recordDataCheckbox = document.getElementById('recordData') as HTMLInputElement;
 const messageDisplay = document.getElementById('messageDisplay') as HTMLDivElement;
 const statusIcon = document.getElementById('statusIcon') as HTMLDivElement;
 const statusText = document.getElementById('statusText') as HTMLSpanElement;
 
 // Verify all elements exist
 if (!startButton || !stopButton || !localAddressInput || !localPortInput || 
-    !updateRateInput || !messageDisplay || !statusIcon || !statusText) {
+    !updateRateInput || !recordDataCheckbox || !messageDisplay || !statusIcon || !statusText) {
     throw new Error('Required DOM elements not found');
 }
 
@@ -49,7 +51,8 @@ startButton.addEventListener('click', async () => {
     const config: Config = {
         localAddress: localAddressInput.value,
         localPort: parseInt(localPortInput.value),
-        updateRate: parseFloat(updateRateInput.value)
+        updateRate: parseFloat(updateRateInput.value),
+        recordData: recordDataCheckbox.checked
     };
 
     try {
