@@ -64,12 +64,28 @@ Returns a JSON object with transformed values for all addresses:
 GET /api/messages/:address
 ```
 
-Returns the transformed value for a specific OSC address. The address should be URL-encoded if it contains special characters.
+Returns the transformed value for a specific OSC address. There are two ways to access address data:
 
-Example request:
-```http
-GET /api/messages/%2Falpha
-```
+1. **URL-encoded path** (original method):
+   The address should be URL-encoded if it contains special characters.
+
+   Example request:
+   ```http
+   GET /api/messages/%2Falpha
+   ```
+
+2. **Direct path segments** (new method):
+   Use the OSC address as path segments after `/api/messages/`.
+
+   Example request:
+   ```http
+   GET /api/messages/muse/alpha
+   ```
+   
+   Or with leading slash:
+   ```http
+   GET /api/messages//muse/alpha
+   ```
 
 Example response:
 ```json
