@@ -13,8 +13,8 @@ const WAVE_NAMES = ['alpha', 'beta', 'delta', 'gamma', 'theta'];
 const WAVE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
 const NUM_POINTS = 500; // Show 5 seconds of data (100 points per second)
 const WAVE_HEIGHT = 0.8; // 80% of available vertical space per wave
-const UPDATE_INTERVAL = 1000; // ms
-const TRANSITION_DURATION = UPDATE_INTERVAL * 5; // ms
+const UPDATE_INTERVAL = 100; // ms
+const TRANSITION_DURATION = 100; // ms
 
 class WaveVisualizer {
     private canvas: HTMLCanvasElement;
@@ -116,7 +116,7 @@ class WaveVisualizer {
             // Draw wave name and current value
             this.ctx.fillStyle = wave.color;
             this.ctx.font = '14px Arial';
-            this.ctx.fillText(`${wave.name}: ${wave.currentValue.toFixed(4)}`, 10, centerY - waveHeight/2 + 20);
+            this.ctx.fillText(`${wave.name}: ${wave.targetValue.toFixed(4)}`, 10, centerY - waveHeight/2 + 20);
         });
     }
 
