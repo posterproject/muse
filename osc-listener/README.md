@@ -30,14 +30,103 @@ Content-Type: application/json
 }
 ```
 
-Starts listening for OSC messages on the specified address and port.
+Starts listening for OSC messages on the specified address and port. 
+
+Response:
+```json
+{
+    "success": true,
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "config": {
+        "localAddress": "0.0.0.0",
+        "localPort": 9005,
+        "updateRate": 1,
+        "serverPort": 3001,
+        "debug": 2,
+        "recordData": false,
+        "recordFileName": "raw-osc-data.csv"
+    },
+    "noChanges": false
+}
+```
+
+**Session Management Behavior:**
+- If the listener is not running, it starts with the provided configuration
+- If the listener is already running, it returns the current configuration and ignores the new settings
+- Each client receives a unique sessionId that's used to track active connections
+- Server continues running until all sessions disconnect or time out (5 minutes of inactivity)
 
 ### Stop OSC Listener
 ```http
 POST /api/stop
+Content-Type: application/json
+
+{
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000"
+}
 ```
 
-Stops the OSC listener and clears all buffers.
+Stops the OSC listener if this is the last active session, otherwise just disconnects this client.
+
+Response when server stops:
+```json
+{
+    "success": true,
+    "message": "Server stopped (last client disconnected)"
+}
+```
+
+Response when other clients are still connected:
+```json
+{
+    "success": true,
+    "message": "Client disconnected, but server still running",
+    "remainingSessions": 2
+}
+```
+
+Response if server is already stopped:
+```json
+{
+    "success": true,
+    "message": "Server already stopped",
+    "noChanges": true
+}
+```
+
+### Get Server Status
+```http
+GET /api/status
+```
+
+Returns the current status of the OSC listener server.
+
+Response when running:
+```json
+{
+    "running": true,
+    "message": "Server running",
+    "config": {
+        "localAddress": "0.0.0.0",
+        "localPort": 9005,
+        "updateRate": 1,
+        "serverPort": 3001,
+        "debug": 2,
+        "recordData": false,
+        "recordFileName": "raw-osc-data.csv"
+    },
+    "sessionCount": 2,
+    "sessionIds": ["550e8400-e29b-41d4-a716-446655440000", "7c9e6679-7425-40de-944b-e07fc1f90ae7"]
+}
+```
+
+Response when stopped:
+```json
+{
+    "running": false,
+    "message": "Server not running"
+}
+```
 
 ### Get Available Addresses
 ```http
@@ -179,6 +268,7 @@ This will create a `dist` directory with the production-ready files.
 
 ## Testing
 
+### Manual Testing
 To test the OSC listener:
 
 1. Start both the backend and frontend servers as described above
@@ -187,6 +277,37 @@ To test the OSC listener:
    localhost:9005 (or a port selected on the config web page)
    ```
 3. The messages should appear in the web interface
+
+### Manual API Testing
+
+A bash script is provided to manually test the session management API:
+
+```bash
+npm run manual-test
+```
+
+This will execute a series of curl commands to test:
+- Server status
+- Starting multiple clients
+- Checking session management
+- Disconnecting clients
+- Stopping the server
+
+Note: The server must be running (`npm run server`) before executing this test.
+
+### Automated Integration Testing
+
+The project includes automated integration tests for the session management functionality:
+
+```bash
+npm run integration-tests
+```
+
+These tests will:
+- Start a server instance
+- Test all the session management features
+- Verify the server behavior with multiple clients
+- Automatically clean up after each test
 
 ## Project Structure
 
