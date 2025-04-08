@@ -62,5 +62,8 @@ typings/
 # next.js build output
 .next
 
-dist/bundle.js
-dist/bundle.js.map
+# dist folder
+dist/
+
+# Project specific
+osc-listener/raw-osc-data.csv

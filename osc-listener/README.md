@@ -186,3 +186,33 @@ osc-listener/
 ├── package.json       # Project dependencies and scripts
 └── tsconfig.json      # TypeScript configuration
 ```
+
+## Raw OSC Data Recording
+
+The OSC Listener now includes the ability to record raw OSC data to a CSV file. This feature is useful for:
+
+- Creating test datasets from real OSC devices
+- Analyzing OSC data patterns
+- Creating data for playback with the osc-mock-stream utility
+
+### How to Use Recording
+
+1. In the web interface, check the "Record raw OSC data to CSV" checkbox before clicking Start
+2. All received OSC messages will be recorded to `raw-osc-data.csv` in the project root
+3. The data is periodically flushed to disk, and the final flush occurs when stopping the listener
+4. The CSV format matches the osc-mock-stream format: `timestamp,osc_address,value1,value2,...`
+
+### CSV File Format
+
+The CSV file contains the following columns:
+- Timestamp (milliseconds since epoch)
+- OSC address (e.g., `/muse/eeg`)
+- Value columns (variable number based on the OSC message)
+
+Example:
+```
+1649405112345,/muse/eeg,825.23,743.12,901.45,650.67
+1649405112348,/muse/alpha,0.5,0.6,0.7,0.8
+```
+
+This format is directly compatible with the osc-mock-stream utility for playback.

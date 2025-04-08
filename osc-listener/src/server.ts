@@ -19,7 +19,9 @@ app.post('/api/start', (req, res) => {
         localPort: req.body.localPort,
         updateRate: req.body.updateRate,
         serverPort: defaultConfig.serverPort,
-        debug: defaultConfig.debug
+        debug: defaultConfig.debug,
+        recordData: req.body.recordData || defaultConfig.recordData,
+        recordFileName: defaultConfig.recordFileName
     };
 
     try {
