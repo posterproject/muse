@@ -9,17 +9,14 @@ A real-time waveform visualizer that displays five different waves (alpha, beta,
 npm install
 ```
 
-2. Start the OSC Listener service (from the osc-listener directory):
-```bash
-npm run server
-```
-
-3. Start the development server:
+2. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser to `http://localhost:5173`
+3. Open your browser to `http://localhost:5173`
+
+The visualizer will automatically start the OSC Listener service when the page loads and stop it when the page is closed.
 
 ## Features
 
@@ -30,14 +27,24 @@ npm run dev
 - Fallback to alternative data sources if primary source unavailable
 - Responsive canvas that adjusts to window size
 - Color-coded waves for easy identification
+- Auto-start and auto-stop of the OSC Listener server
 
 ## OSC Integration
 
-The visualizer now connects to the OSC Listener service and requests data from:
+The visualizer connects to the OSC Listener service and requests data from:
 - Primary: `/muse/elements/alpha_absolute2`, `/muse/elements/beta_absolute2`, etc.
 - Fallback: `/muse/dsp/elements/alpha`, `/muse/dsp/elements/beta`, etc.
 
 This allows compatibility with different Muse headband data formats.
+
+### Automatic Server Management
+
+The visualizer now includes the following automated server management features:
+- On page load, it automatically attempts to start the OSC Listener server
+- If the server is already running, it connects to the existing instance
+- When the page is closed, it gracefully disconnects from the server
+- If it's the last client connected, it will stop the server completely
+- Displays an error message if it cannot connect to the server
 
 ## Visualization Behavior
 
