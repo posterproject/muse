@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "server": "tsx src/server.ts",
     "integration-tests": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs",
+    "unit-tests": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs tests/transformer.test.ts",
+    "test": "npm run unit-tests",
     "manual-test": "tests/manual-test.sh"
   },
   "keywords": [],
