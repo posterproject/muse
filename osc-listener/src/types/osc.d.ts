@@ -1,25 +1,21 @@
-// Declare the OSC module
-declare module 'osc' {
-    export interface Message {
-        address: string;
-        args: Array<{
-            type: string;
-            value: number;
-        }>;
-    }
-
-    export interface UDPPortOptions {
+// OSC module declaration
+declare namespace osc {
+    interface UDPPortOptions {
         localAddress: string;
         localPort: number;
     }
 
-    export class UDPPort {
+    class UDPPort {
         constructor(options: UDPPortOptions);
-        on(event: 'ready' | 'error' | 'message', callback: (data: any) => void): void;
-        send(message: Message, address: string, port: number): void;
+        on(event: string, callback: (data: any) => void): void;
         open(): void;
         close(): void;
+        send(message: any, address: string, port: number): void;
     }
+}
+
+declare module 'osc' {
+    export = osc;
 }
 
 declare module 'ws' {
@@ -35,7 +31,4 @@ declare module 'ws' {
         on(event: 'connection', callback: (ws: WebSocket) => void): void;
         close(): void;
     }
-}
-
-// Re-export the types we need from the osc module
-export { Message, UDPPortOptions, UDPPort } from 'osc'; 
+} 
