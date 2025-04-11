@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WebGL Fluid Simulation with OSC</title>
+        <script type="text/javascript" src="dat.gui.min.js"></script>
+        <style>
+            * { user-select: none; }
+            html, body { overflow: hidden; background-color: #000; }
+            body { margin: 0; position: fixed; width: 100%; height: 100%; }
+            canvas { width: 100%; height: 100%; }
+            .dg { opacity: 0.9; }
+            .dg .property-name { overflow: visible; }
+            .osc-status {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background-color: rgba(0, 0, 0, 0.5);
+                padding: 10px;
+                color: white;
+                font-family: monospace;
+                z-index: 1000;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas></canvas>
+        <div class="osc-status" id="oscStatus">OSC: Loading...</div>
+
+        <script src="./dat.gui.min.js"></script>
+        <script src="./script.js"></script>
+        <script>
+            window.addEventListener('load', function() {
+                console.log('Fluid simulation loaded');
+                const script = document.createElement('script');
+                script.src = './osc-integration.js';
+                script.onload = function() {
+                    console.log('OSC integration script loaded, starting integration');
+                    const osc = new OSCIntegration();
+                    osc.start().catch(error => {
+                        console.error('Failed to start OSC integration:', error);
+                        document.getElementById('oscStatus').textContent = 'OSC: Failed to start integration';
+                    });
+                };
+                script.onerror = function() {
+                    console.error('Failed to load OSC integration script');
+                    document.getElementById('oscStatus').textContent = 'OSC: Failed to load integration';
+                };
+                document.body.appendChild(script);
+            });
+        </script>
+    </body>
+</html>

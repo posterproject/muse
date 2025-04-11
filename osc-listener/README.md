@@ -26,18 +26,115 @@ Content-Type: application/json
 {
     "localAddress": "0.0.0.0",
     "localPort": 9005,
-    "updateRate": 1
+    "updateRate": 1,
+    "recordData": false,
+    "aggregateEndpoints": [
+        {
+            "virtualAddress": "/virtual/brainwave/average",
+            "sourceAddresses": ["/muse/alpha", "/muse/beta", "/muse/gamma"],
+            "aggregateFunction": "average"
+        }
+    ]
 }
 ```
 
-Starts listening for OSC messages on the specified address and port.
+Starts listening for OSC messages on the specified address and port. The optional `aggregateEndpoints` array allows you to define virtual addresses that aggregate data from multiple sources.
+
+Response:
+```json
+{
+    "success": true,
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "config": {
+        "localAddress": "0.0.0.0",
+        "localPort": 9005,
+        "updateRate": 1,
+        "serverPort": 3001,
+        "debug": 2,
+        "recordData": false,
+        "recordFileName": "raw-osc-data.csv"
+    },
+    "noChanges": false
+}
+```
+
+**Session Management Behavior:**
+- If the listener is not running, it starts with the provided configuration
+- If the listener is already running, it returns the current configuration and ignores the new settings
+- Each client receives a unique sessionId that's used to track active connections
+- Server continues running until all sessions disconnect or time out (5 minutes of inactivity)
 
 ### Stop OSC Listener
 ```http
 POST /api/stop
+Content-Type: application/json
+
+{
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000"
+}
 ```
 
-Stops the OSC listener and clears all buffers.
+Stops the OSC listener if this is the last active session, otherwise just disconnects this client.
+
+Response when server stops:
+```json
+{
+    "success": true,
+    "message": "Server stopped (last client disconnected)"
+}
+```
+
+Response when other clients are still connected:
+```json
+{
+    "success": true,
+    "message": "Client disconnected, but server still running",
+    "remainingSessions": 2
+}
+```
+
+Response if server is already stopped:
+```json
+{
+    "success": true,
+    "message": "Server already stopped",
+    "noChanges": true
+}
+```
+
+### Get Server Status
+```http
+GET /api/status
+```
+
+Returns the current status of the OSC listener server.
+
+Response when running:
+```json
+{
+    "running": true,
+    "message": "Server running",
+    "config": {
+        "localAddress": "0.0.0.0",
+        "localPort": 9005,
+        "updateRate": 1,
+        "serverPort": 3001,
+        "debug": 2,
+        "recordData": false,
+        "recordFileName": "raw-osc-data.csv"
+    },
+    "sessionCount": 2,
+    "sessionIds": ["550e8400-e29b-41d4-a716-446655440000", "7c9e6679-7425-40de-944b-e07fc1f90ae7"]
+}
+```
+
+Response when stopped:
+```json
+{
+    "running": false,
+    "message": "Server not running"
+}
+```
 
 ### Get Available Addresses
 ```http
@@ -64,12 +161,28 @@ Returns a JSON object with transformed values for all addresses:
 GET /api/messages/:address
 ```
 
-Returns the transformed value for a specific OSC address. The address should be URL-encoded if it contains special characters.
+Returns the transformed value for a specific OSC address. There are two ways to access address data:
 
-Example request:
-```http
-GET /api/messages/%2Falpha
-```
+1. **URL-encoded path** (original method):
+   The address should be URL-encoded if it contains special characters.
+
+   Example request:
+   ```http
+   GET /api/messages/%2Falpha
+   ```
+
+2. **Direct path segments** (new method):
+   Use the OSC address as path segments after `/api/messages/`.
+
+   Example request:
+   ```http
+   GET /api/messages/muse/alpha
+   ```
+   
+   Or with leading slash:
+   ```http
+   GET /api/messages//muse/alpha
+   ```
 
 Example response:
 ```json
@@ -106,6 +219,7 @@ Returns "OK" if the server is running.
 - Provides transformed values through REST API
 - Supports custom transformation functions
 - Real-time updates
+- Virtual aggregate endpoints that combine data from multiple addresses
 
 ## Prerequisites
 
@@ -163,6 +277,7 @@ This will create a `dist` directory with the production-ready files.
 
 ## Testing
 
+### Manual Testing
 To test the OSC listener:
 
 1. Start both the backend and frontend servers as described above
@@ -171,6 +286,37 @@ To test the OSC listener:
    localhost:9005 (or a port selected on the config web page)
    ```
 3. The messages should appear in the web interface
+
+### Manual API Testing
+
+A bash script is provided to manually test the session management API:
+
+```bash
+npm run manual-test
+```
+
+This will execute a series of curl commands to test:
+- Server status
+- Starting multiple clients
+- Checking session management
+- Disconnecting clients
+- Stopping the server
+
+Note: The server must be running (`npm run server`) before executing this test.
+
+### Automated Integration Testing
+
+The project includes automated integration tests for the session management functionality:
+
+```bash
+npm run integration-tests
+```
+
+These tests will:
+- Start a server instance
+- Test all the session management features
+- Verify the server behavior with multiple clients
+- Automatically clean up after each test
 
 ## Project Structure
 
@@ -186,3 +332,104 @@ osc-listener/
 ├── package.json       # Project dependencies and scripts
 └── tsconfig.json      # TypeScript configuration
 ```
+
+## Raw OSC Data Recording
+
+The OSC Listener now includes the ability to record raw OSC data to a CSV file. This feature is useful for:
+
+- Creating test datasets from real OSC devices
+- Analyzing OSC data patterns
+- Creating data for playback with the osc-mock-stream utility
+
+### How to Use Recording
+
+1. In the web interface, check the "Record raw OSC data to CSV" checkbox before clicking Start
+2. All received OSC messages will be recorded to `raw-osc-data.csv` in the project root
+3. The data is periodically flushed to disk, and the final flush occurs when stopping the listener
+4. The CSV format matches the osc-mock-stream format: `timestamp,osc_address,value1,value2,...`
+
+### CSV File Format
+
+The CSV file contains the following columns:
+- Timestamp (milliseconds since epoch)
+- OSC address (e.g., `/muse/eeg`)
+- Value columns (variable number based on the OSC message)
+
+Example:
+```
+1649405112345,/muse/eeg,825.23,743.12,901.45,650.67
+1649405112348,/muse/alpha,0.5,0.6,0.7,0.8
+```
+
+This format is directly compatible with the osc-mock-stream utility for playback.
+
+## Aggregate Endpoints Feature
+
+The OSC Listener supports virtual addresses that aggregate data from multiple real OSC addresses. This feature allows you to create derived metrics from multiple data streams.
+
+### Configuring Aggregate Endpoints
+
+When starting the OSC Listener, you can specify an array of aggregate endpoint configurations:
+
+```javascript
+{
+    "aggregateEndpoints": [
+        {
+            "virtualAddress": "/virtual/average/eeg",
+            "sourceAddresses": ["/muse/eeg/1", "/muse/eeg/2", "/muse/eeg/3"],
+            "aggregateFunction": "average"
+        },
+        {
+            "virtualAddress": "/virtual/max/alpha",
+            "sourceAddresses": ["/alpha/ch1", "/alpha/ch2", "/alpha/ch3", "/alpha/ch4"],
+            "aggregateFunction": "max"
+        }
+    ]
+}
+```
+
+Each aggregate endpoint has:
+- `virtualAddress`: The new OSC address that will represent the aggregated data
+- `sourceAddresses`: Array of real OSC addresses whose data will be combined
+- `aggregateFunction`: The function to use for aggregation. Can be one of:
+  - `"average"`: Calculate the average of all source values
+  - `"nonZeroAverage"`: Calculate the average of all non-zero source values
+  - `"sum"`: Calculate the sum of all source values
+  - `"max"`: Find the maximum value among all sources
+  - `"min"`: Find the minimum value among all sources
+
+### Using Aggregate Endpoints
+
+Virtual addresses work just like real addresses in the API:
+
+```http
+GET /api/messages/virtual/average/eeg
+```
+
+Will return the aggregated data from the specified source addresses.
+
+### New Endpoints for Aggregate Addresses
+
+Two new endpoints are available to help work with virtual addresses:
+
+```http
+GET /api/virtual-addresses
+```
+
+Returns an array of all configured virtual addresses.
+
+```http
+GET /api/real-addresses
+```
+
+Returns an array of all real OSC addresses, excluding virtual ones.
+
+### How It Works
+
+1. When the OSC Listener receives data on any of the source addresses, it stores it in the normal way
+2. When a request is made for a virtual address, it:
+   - Retrieves the latest transformed data from each source address
+   - Applies the specified aggregate function to combine the data
+   - Returns the result
+
+This allows for real-time calculation of derived metrics from multiple data sources.

@@ -27,15 +27,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import { FluidOSCController } from './src/fluid-osc-controller';
+
 const canvas = document.getElementsByTagName('canvas')![0];
 resizeCanvas();
 
-let config = {
+// Expose config and updateKeywords to window object
+window.config = {
     SIM_RESOLUTION: 128,
     DYE_RESOLUTION: 1024,
     CAPTURE_RESOLUTION: 512,
-    DENSITY_DISSIPATION: 1,
-    VELOCITY_DISSIPATION: 0.2,
+    DENSITY_DISSIPATION: 0.95,
+    VELOCITY_DISSIPATION: 0.95,
     PRESSURE: 0.8,
     PRESSURE_ITERATIONS: 20,
     CURL: 30,
@@ -55,14 +58,10 @@ let config = {
     BLOOM_SOFT_KNEE: 0.7,
     SUNRAYS: true,
     SUNRAYS_RESOLUTION: 196,
-    SUNRAYS_WEIGHT: 1.0,
-    // EEG wave parameters
-    EEG_ALPHA: 0.5,    // Normalized value between 0-1
-    EEG_BETA: 0.5,     // Normalized value between 0-1
-    EEG_THETA: 0.5,    // Normalized value between 0-1
-    EEG_GAMMA: 0.5,    // Normalized value between 0-1
-    EEG_DELTA: 0.5,    // Normalized value between 0-1
+    SUNRAYS_WEIGHT: 1.0
 };
+
+window.updateKeywords = updateKeywords;
 
 interface Pointer {
     id: number;
@@ -102,13 +101,13 @@ const { gl, ext } = getWebGLContext(canvas);
 const isMobile = () => false;
 
 if (isMobile()) {
-    config.DYE_RESOLUTION = 512;
+    window.config.DYE_RESOLUTION = 512;
 }
 if (!ext.supportLinearFiltering) {
-    config.DYE_RESOLUTION = 512;
-    config.SHADING = false;
-    config.BLOOM = false;
-    config.SUNRAYS = false;
+    window.config.DYE_RESOLUTION = 512;
+    window.config.SHADING = false;
+    window.config.BLOOM = false;
+    window.config.SUNRAYS = false;
 }
 
 // Removed GUI setup
@@ -561,12 +560,6 @@ const divergenceShaderSource = `
         float R = texture2D(uVelocity, vR).x;
         float T = texture2D(uVelocity, vT).y;
         float B = texture2D(uVelocity, vB).y;
-        // Boundary conditions (clamp to edge basically)
-        // vec2 C = texture2D(uVelocity, vUv).xy;
-        // if (vL.x < 0.0) { L = -C.x; }
-        // if (vR.x > 1.0) { R = -C.x; }
-        // if (vT.y > 1.0) { T = -C.y; }
-        // if (vB.y < 0.0) { B = -C.y; }
         float div = 0.5 * (R - L + T - B);
         gl_FragColor = vec4(div, 0.0, 0.0, 1.0);
     }
@@ -636,10 +629,10 @@ const pressureShaderSource = `
         float B = texture2D(uPressure, vB).x;
         float C = texture2D(uPressure, vUv).x;
         // Boundary conditions (Neumann boundary for pressure)
-        // if (vL.x < 0.0) { L = R; }
-        // if (vR.x > 1.0) { R = L; }
-        // if (vT.y > 1.0) { T = B; }
-        // if (vB.y < 0.0) { B = T; }
+        if (vL.x < 0.0) { L = R; }
+        if (vR.x > 1.0) { R = L; }
+        if (vT.y > 1.0) { T = B; }
+        if (vB.y < 0.0) { B = T; }
         float divergence = texture2D(uDivergence, vUv).x;
         float pressure = (L + R + B + T - divergence) * 0.25;
         gl_FragColor = vec4(pressure, 0.0, 0.0, 1.0);
@@ -663,10 +656,10 @@ const gradientSubtractShaderSource = `
         float B = texture2D(uPressure, vB).x;
         vec2 velocity = texture2D(uVelocity, vUv).xy;
         // Boundary conditions for pressure gradient (match pressure Neumann boundary)
-        // if (vL.x < 0.0) { L = R; }
-        // if (vR.x > 1.0) { R = L; }
-        // if (vT.y > 1.0) { T = B; }
-        // if (vB.y < 0.0) { B = T; }
+        if (vL.x < 0.0) { L = R; }
+        if (vR.x > 1.0) { R = L; }
+        if (vT.y > 1.0) { T = B; }
+        if (vB.y < 0.0) { B = T; }
         velocity.xy -= 0.5 * vec2(R - L, T - B);
         gl_FragColor = vec4(velocity, 0.0, 1.0);
     }
@@ -852,8 +845,8 @@ gl.bindTexture(gl.TEXTURE_2D, ditheringTexture);
 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([128, 128, 128]));
 
 function initFramebuffers () {
-    let simRes = getResolution(config.SIM_RESOLUTION);
-    let dyeRes = getResolution(config.DYE_RESOLUTION);
+    let simRes = getResolution(window.config.SIM_RESOLUTION);
+    let dyeRes = getResolution(window.config.DYE_RESOLUTION);
 
     const texType = ext.halfFloatTexType;
     // Ensure formats are not null before using them
@@ -899,7 +892,7 @@ function initFramebuffers () {
 }
 
 function initBloomFramebuffers () {
-    let res = getResolution(config.BLOOM_RESOLUTION);
+    let res = getResolution(window.config.BLOOM_RESOLUTION);
 
     const texType = ext.halfFloatTexType;
     const rgba = ext.formatRGBA ?? { internalFormat: gl.RGBA, format: gl.RGBA }; // Fallback
@@ -912,7 +905,7 @@ function initBloomFramebuffers () {
     }
 
     bloomFramebuffers.length = 0;
-    for (let i = 0; i < config.BLOOM_ITERATIONS; i++) {
+    for (let i = 0; i < window.config.BLOOM_ITERATIONS; i++) {
         let width = res.width >> (i + 1);
         let height = res.height >> (i + 1);
 
@@ -924,7 +917,7 @@ function initBloomFramebuffers () {
 }
 
 function initSunraysFramebuffers () {
-    let res = getResolution(config.SUNRAYS_RESOLUTION);
+    let res = getResolution(window.config.SUNRAYS_RESOLUTION);
 
     const texType = ext.halfFloatTexType;
     const r = ext.formatR ?? { internalFormat: gl.RED, format: gl.RED }; // Fallback
@@ -948,9 +941,9 @@ function initSunraysFramebuffers () {
 
 function updateKeywords () {
     let displayKeywords = [];
-    if (config.SHADING) displayKeywords.push('SHADING');
-    if (config.BLOOM) displayKeywords.push('BLOOM');
-    if (config.SUNRAYS) displayKeywords.push('SUNRAYS');
+    if (window.config.SHADING) displayKeywords.push('SHADING');
+    if (window.config.BLOOM) displayKeywords.push('BLOOM');
+    if (window.config.SUNRAYS) displayKeywords.push('SUNRAYS');
 
     // Recreate the display program with the correct keywords
     const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, displayShaderSource, displayKeywords);
@@ -973,7 +966,7 @@ function update () {
         initFramebuffers();
     }
 
-    if (!config.PAUSED) {
+    if (!window.config.PAUSED) {
         applyInputs();
         step(dt);
     }
@@ -1008,7 +1001,7 @@ function step (dt: number) {
     gl.uniform2f(vorticityProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
     gl.uniform1i(vorticityProgram.uniforms.uVelocity, velocity.read.attach(0));
     gl.uniform1i(vorticityProgram.uniforms.uCurl, curl.attach(1));
-    gl.uniform1f(vorticityProgram.uniforms.curl, config.CURL);
+    gl.uniform1f(vorticityProgram.uniforms.curl, window.config.CURL);
     gl.uniform1f(vorticityProgram.uniforms.dt, dt);
     blit(velocity.write);
     velocity.swap();
@@ -1022,7 +1015,7 @@ function step (dt: number) {
     // Pressure solver setup
     clearProgram.bind();
     gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
-    gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE); // Use pressure value for clearing?
+    gl.uniform1f(clearProgram.uniforms.value, window.config.PRESSURE); // Use pressure value for clearing?
     blit(pressure.write);
     pressure.swap();
 
@@ -1030,7 +1023,7 @@ function step (dt: number) {
     pressureProgram.bind();
     gl.uniform2f(pressureProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
     gl.uniform1i(pressureProgram.uniforms.uDivergence, divergence.attach(0));
-    for (let i = 0; i < config.PRESSURE_ITERATIONS; i++) {
+    for (let i = 0; i < window.config.PRESSURE_ITERATIONS; i++) {
         gl.uniform1i(pressureProgram.uniforms.uPressure, pressure.read.attach(1));
         blit(pressure.write);
         pressure.swap();
@@ -1052,7 +1045,7 @@ function step (dt: number) {
     gl.uniform1i(advectionProgram.uniforms.uVelocity, velocity.read.attach(0));
     gl.uniform1i(advectionProgram.uniforms.uSource, velocity.read.attach(0)); // Advect velocity itself
     gl.uniform1f(advectionProgram.uniforms.dt, dt);
-    gl.uniform1f(advectionProgram.uniforms.dissipation, config.VELOCITY_DISSIPATION);
+    gl.uniform1f(advectionProgram.uniforms.dissipation, window.config.VELOCITY_DISSIPATION);
     blit(velocity.write);
     velocity.swap();
 
@@ -1062,7 +1055,7 @@ function step (dt: number) {
         gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, dye.texelSizeX, dye.texelSizeY);
     gl.uniform1i(advectionProgram.uniforms.uVelocity, velocity.read.attach(0)); // Use velocity texture
     gl.uniform1i(advectionProgram.uniforms.uSource, dye.read.attach(1)); // Use dye texture as source
-    gl.uniform1f(advectionProgram.uniforms.dissipation, config.DENSITY_DISSIPATION);
+    gl.uniform1f(advectionProgram.uniforms.dissipation, window.config.DENSITY_DISSIPATION);
     blit(dye.write);
     dye.swap();
 }
@@ -1078,10 +1071,10 @@ function render (target: FBO | null) {
     }
 
     // Set clear color
-    if (config.TRANSPARENT) {
+    if (window.config.TRANSPARENT) {
         gl.clearColor(0, 0, 0, 0);
     } else {
-        gl.clearColor(config.BACK_COLOR.r / 255, config.BACK_COLOR.g / 255, config.BACK_COLOR.b / 255, 1.0);
+        gl.clearColor(window.config.BACK_COLOR.r / 255, window.config.BACK_COLOR.g / 255, window.config.BACK_COLOR.b / 255, 1.0);
     }
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -1089,10 +1082,10 @@ function render (target: FBO | null) {
     // if (config.TRANSPARENT) { ... }
 
     // Apply post-processing effects
-    if (config.BLOOM) {
+    if (window.config.BLOOM) {
         applyBloom(dye.read, bloom);
     }
-    if (config.SUNRAYS) {
+    if (window.config.SUNRAYS) {
         applySunrays(dye.read, sunraysTemp, sunrays);
     }
 
@@ -1100,10 +1093,10 @@ function render (target: FBO | null) {
     displayProgram.bind();
     gl.uniform2f(displayProgram.uniforms.texelSize, 1.0 / gl.drawingBufferWidth, 1.0 / gl.drawingBufferHeight);
     gl.uniform1i(displayProgram.uniforms.uTexture, dye.read.attach(0));
-    if (config.BLOOM) {
+    if (window.config.BLOOM) {
         gl.uniform1i(displayProgram.uniforms.uBloom, bloom.attach(1));
     }
-    if (config.SUNRAYS) {
+    if (window.config.SUNRAYS) {
         gl.uniform1i(displayProgram.uniforms.uSunrays, sunrays.attach(2));
     }
     // Dithering uniforms (using placeholder texture)
@@ -1122,12 +1115,12 @@ function applyBloom (source: FBO, destination: FBO) {
     gl.disable(gl.BLEND);
     // Prefilter pass
     bloomPrefilterProgram.bind();
-    let knee = config.BLOOM_THRESHOLD * config.BLOOM_SOFT_KNEE + 0.0001;
-    let curve0 = config.BLOOM_THRESHOLD - knee;
+    let knee = window.config.BLOOM_THRESHOLD * window.config.BLOOM_SOFT_KNEE + 0.0001;
+    let curve0 = window.config.BLOOM_THRESHOLD - knee;
     let curve1 = knee * 2.0;
     let curve2 = 0.25 / knee;
     gl.uniform3f(bloomPrefilterProgram.uniforms.curve, curve0, curve1, curve2);
-    gl.uniform1f(bloomPrefilterProgram.uniforms.threshold, config.BLOOM_THRESHOLD);
+    gl.uniform1f(bloomPrefilterProgram.uniforms.threshold, window.config.BLOOM_THRESHOLD);
     gl.uniform1i(bloomPrefilterProgram.uniforms.uTexture, source.attach(0));
     gl.viewport(0, 0, last.width, last.height);
     blit(last);
@@ -1163,7 +1156,7 @@ function applyBloom (source: FBO, destination: FBO) {
     bloomFinalProgram.bind();
     gl.uniform2f(bloomFinalProgram.uniforms.texelSize, last.texelSizeX, last.texelSizeY);
     gl.uniform1i(bloomFinalProgram.uniforms.uTexture, last.attach(0));
-    gl.uniform1f(bloomFinalProgram.uniforms.intensity, config.BLOOM_INTENSITY);
+    gl.uniform1f(bloomFinalProgram.uniforms.intensity, window.config.BLOOM_INTENSITY);
     gl.viewport(0, 0, destination.width, destination.height);
     blit(destination);
 }
@@ -1178,7 +1171,7 @@ function applySunrays (source: FBO, mask: FBO, destination: FBO) {
 
     // Apply sunrays using the mask
     sunraysProgram.bind();
-    gl.uniform1f(sunraysProgram.uniforms.weight, config.SUNRAYS_WEIGHT);
+    gl.uniform1f(sunraysProgram.uniforms.weight, window.config.SUNRAYS_WEIGHT);
     gl.uniform1i(sunraysProgram.uniforms.uTexture, mask.attach(0));
     gl.viewport(0, 0, destination.width, destination.height); // Use destination dimensions
     blit(destination);
@@ -1200,8 +1193,8 @@ function blur (target: FBO, temp: FBO, iterations: number) {
 }
 
 function splatPointer (pointer: Pointer) {
-    let dx = pointer.deltaX * config.SPLAT_FORCE;
-    let dy = pointer.deltaY * config.SPLAT_FORCE;
+    let dx = pointer.deltaX * window.config.SPLAT_FORCE;
+    let dy = pointer.deltaY * window.config.SPLAT_FORCE;
     splat(pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color);
 }
 
@@ -1229,7 +1222,7 @@ function splat (x: number, y: number, dx: number, dy: number, color: RGBColor) {
     gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
     gl.uniform2f(splatProgram.uniforms.point, x, y);
     gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0);
-    gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS / 100.0));
+    gl.uniform1f(splatProgram.uniforms.radius, correctRadius(window.config.SPLAT_RADIUS / 100.0));
     blit(velocity.write);
     velocity.swap();
 
@@ -1314,7 +1307,7 @@ window.addEventListener('touchend', e => {
 
 window.addEventListener('keydown', e => {
     if (e.code === 'KeyP')
-        config.PAUSED = !config.PAUSED;
+        window.config.PAUSED = !window.config.PAUSED;
     if (e.key === ' ')
         splatStack.push(Math.floor(Math.random() * 20 + 5));
 });
@@ -1463,48 +1456,6 @@ function resizeDoubleFBO (target: DoubleFBO, w: number, h: number, internalForma
     target.texelSizeX = 1.0 / w;
     target.texelSizeY = 1.0 / h;
     return target;
-}
-
-// EEG wave mapping functions
-function updateEEGParameters(alpha: number, beta: number, theta: number, gamma: number, delta: number) {
-    // Alpha waves (8-13 Hz) - Velocity dissipation
-    config.VELOCITY_DISSIPATION = 0.2 + (1 - alpha) * 0.3; // Range: 0.2-0.5
-    
-    // Beta waves (13-30 Hz) - Curl/vorticity
-    config.CURL = 30 + beta * 70; // Range: 30-100
-    
-    // Theta waves (4-8 Hz) - Bloom intensity
-    config.BLOOM_INTENSITY = 0.8 + theta * 0.4; // Range: 0.8-1.2
-    
-    // Gamma waves (30-100 Hz) - Splat force
-    config.SPLAT_FORCE = 6000 + gamma * 4000; // Range: 6000-10000
-    
-    // Delta waves (0.5-4 Hz) - Density dissipation
-    config.DENSITY_DISSIPATION = 1.0 + delta * 0.5; // Range: 1.0-1.5
-}
-
-// Example OSC message handler
-function handleOSCMessage(address: string, args: any[]) {
-    if (address === '/muse/elements/alpha_relative') {
-        config.EEG_ALPHA = args[0];
-    } else if (address === '/muse/elements/beta_relative') {
-        config.EEG_BETA = args[0];
-    } else if (address === '/muse/elements/theta_relative') {
-        config.EEG_THETA = args[0];
-    } else if (address === '/muse/elements/gamma_relative') {
-        config.EEG_GAMMA = args[0];
-    } else if (address === '/muse/elements/delta_relative') {
-        config.EEG_DELTA = args[0];
-    }
-    
-    // Update all EEG parameters
-    updateEEGParameters(
-        config.EEG_ALPHA,
-        config.EEG_BETA,
-        config.EEG_THETA,
-        config.EEG_GAMMA,
-        config.EEG_DELTA
-    );
 }
 
 // Start the simulation loop
