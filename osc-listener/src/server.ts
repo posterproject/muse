@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import { Config, defaultConfig, DebugLevel } from './config';
 import { OSCListener } from './osc-listener';
-import { SimpleTransformer } from './transformer/transformer';
-import { TransformerFactory } from './transformer/transformer-factory';
+import { TransformerFactory, aggregateFunctions } from './transformer/transformer-factory';
+import { AggregateTransformer } from './transformer/aggregate-transformer';
+import { MessageTransformer, AggregateConfig } from './types/osc';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -11,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 let oscListener: OSCListener | null = null;
-let transformer: SimpleTransformer | null = null;
+let transformer: MessageTransformer | null = null;
 let currentConfig: Config | null = null;
 const sessions = new Map<string, { timestamp: number }>();
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout
@@ -57,17 +58,52 @@ app.post('/api/start', (req, res) => {
     
     // Start new OSC listener
     const config: Config = {
-        localAddress: req.body.localAddress,
-        localPort: req.body.localPort,
-        updateRate: req.body.updateRate,
+        localAddress: req.body.localAddress || defaultConfig.localAddress,
+        localPort: req.body.localPort || defaultConfig.localPort,
+        updateRate: req.body.updateRate || defaultConfig.updateRate,
         serverPort: defaultConfig.serverPort,
         debug: defaultConfig.debug,
         recordData: req.body.recordData || defaultConfig.recordData,
-        recordFileName: defaultConfig.recordFileName
+        recordFileName: defaultConfig.recordFileName,
+        aggregateEndpoints: req.body.aggregateEndpoints || []
     };
 
     try {
-        transformer = TransformerFactory.createLastValueTransformer();
+        // Create the base transformer
+        const baseTransformer = TransformerFactory.createLastValueTransformer();
+        
+        // Create aggregate transformer if aggregate endpoints are configured
+        if (config.aggregateEndpoints && config.aggregateEndpoints.length > 0) {
+            // Process the aggregate endpoints to ensure they have a valid aggregateFunction
+            const processedConfigs: AggregateConfig[] = config.aggregateEndpoints.map(endpoint => {
+                // If the function is provided as a string (e.g., "average"), map it to the actual function
+                if (typeof endpoint.aggregateFunction === 'string') {
+                    const funcName = endpoint.aggregateFunction;
+                    const func = aggregateFunctions[funcName];
+                    
+                    if (!func) {
+                        console.warn(`Unknown aggregate function: ${funcName}. Using 'average' instead.`);
+                        return {
+                            ...endpoint,
+                            aggregateFunction: aggregateFunctions.average
+                        };
+                    }
+                    
+                    return {
+                        ...endpoint,
+                        aggregateFunction: func
+                    };
+                }
+                
+                return endpoint;
+            });
+            
+            transformer = TransformerFactory.createAggregateTransformer(baseTransformer, processedConfigs);
+            console.log(`Created aggregate transformer with ${processedConfigs.length} virtual addresses`);
+        } else {
+            transformer = baseTransformer;
+        }
+        
         oscListener = new OSCListener(config, transformer);
         currentConfig = config;
         res.json({ 
@@ -234,6 +270,34 @@ app.get('/api/messages/*', (req, res) => {
 
 app.get('/api/health', (_, res) => {
     res.status(200).send('OK');
+});
+
+// Add a new endpoint to get virtual addresses
+app.get('/api/virtual-addresses', (_, res) => {
+    if (!transformer) {
+        res.json([]);
+        return;
+    }
+    
+    if (transformer instanceof AggregateTransformer) {
+        res.json(transformer.getVirtualAddresses());
+    } else {
+        res.json([]);
+    }
+});
+
+// Add a new endpoint to get real addresses (excluding virtual)
+app.get('/api/real-addresses', (_, res) => {
+    if (!transformer) {
+        res.json([]);
+        return;
+    }
+    
+    if (transformer instanceof AggregateTransformer) {
+        res.json(transformer.getRealAddresses());
+    } else {
+        res.json(transformer.getAddresses());
+    }
 });
 
 app.listen(defaultConfig.serverPort, () => {

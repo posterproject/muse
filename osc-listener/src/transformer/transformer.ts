@@ -1,12 +1,4 @@
-import { OSCMessage, TransformFunction, ElementTransformFunction, AddressBuffer } from '../types/osc';
-
-export interface MessageTransformer {
-    addMessage(message: OSCMessage): void;
-    getAddresses(): string[];
-    getTransformedMessages(): Map<string, number[]>;
-    getTransformedAddress(address: string): number[] | null;
-    getBufferContents(address: string): number[][];
-}
+import { OSCMessage, TransformFunction, ElementTransformFunction, AddressBuffer, MessageTransformer } from '../types/osc';
 
 export class SimpleTransformer implements MessageTransformer {
     private buffers: Map<string, AddressBuffer>;

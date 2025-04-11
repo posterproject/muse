@@ -14,11 +14,20 @@ export type AddressBuffer = {
     timestamps: number[] 
 };
 
+export type AggregateFunction = (sourceValues: Map<string, number[]>) => number[];
+
+export interface AggregateConfig {
+    virtualAddress: string;
+    sourceAddresses: string[];
+    aggregateFunction: AggregateFunction;
+}
+
 export interface MessageTransformer {
     addMessage(message: OSCMessage): void;
     getAddresses(): string[];
-    getTransformedMessages(): Map<string, number>;
-    getTransformedAddress(address: string): number | null;
+    getTransformedMessages(): Map<string, number[]>;
+    getTransformedAddress(address: string): number[] | null;
+    getBufferContents(address: string): number[][];
 }
 
 // Declare the OSC module
@@ -70,25 +79,4 @@ export interface UDPPort {
 }
 
 // Re-export the types we need from the osc module
-export { UDPPort, Message, UDPPortOptions } from 'osc';
-
-// Our extended types
-export interface OSCMessage {
-    address: string;
-    args: number[];
-    timestamp: number;
-}
-
-export type TransformFunction = (values: number[][]) => number[];
-export type ElementTransformFunction = (value: number[], address: string) => number[];
-export type AddressBuffer = { 
-    values: number[][];  // Array of message args arrays
-    timestamps: number[] 
-};
-
-export interface MessageTransformer {
-    addMessage(message: OSCMessage): void;
-    getAddresses(): string[];
-    getTransformedMessages(): Map<string, number>;
-    getTransformedAddress(address: string): number | null;
-} 
+export { UDPPort, Message, UDPPortOptions } from 'osc'; 

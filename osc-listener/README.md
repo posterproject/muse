@@ -26,11 +26,19 @@ Content-Type: application/json
 {
     "localAddress": "0.0.0.0",
     "localPort": 9005,
-    "updateRate": 1
+    "updateRate": 1,
+    "recordData": false,
+    "aggregateEndpoints": [
+        {
+            "virtualAddress": "/virtual/brainwave/average",
+            "sourceAddresses": ["/muse/alpha", "/muse/beta", "/muse/gamma"],
+            "aggregateFunction": "average"
+        }
+    ]
 }
 ```
 
-Starts listening for OSC messages on the specified address and port. 
+Starts listening for OSC messages on the specified address and port. The optional `aggregateEndpoints` array allows you to define virtual addresses that aggregate data from multiple sources.
 
 Response:
 ```json
@@ -211,6 +219,7 @@ Returns "OK" if the server is running.
 - Provides transformed values through REST API
 - Supports custom transformation functions
 - Real-time updates
+- Virtual aggregate endpoints that combine data from multiple addresses
 
 ## Prerequisites
 
@@ -353,3 +362,74 @@ Example:
 ```
 
 This format is directly compatible with the osc-mock-stream utility for playback.
+
+## Aggregate Endpoints Feature
+
+The OSC Listener supports virtual addresses that aggregate data from multiple real OSC addresses. This feature allows you to create derived metrics from multiple data streams.
+
+### Configuring Aggregate Endpoints
+
+When starting the OSC Listener, you can specify an array of aggregate endpoint configurations:
+
+```javascript
+{
+    "aggregateEndpoints": [
+        {
+            "virtualAddress": "/virtual/average/eeg",
+            "sourceAddresses": ["/muse/eeg/1", "/muse/eeg/2", "/muse/eeg/3"],
+            "aggregateFunction": "average"
+        },
+        {
+            "virtualAddress": "/virtual/max/alpha",
+            "sourceAddresses": ["/alpha/ch1", "/alpha/ch2", "/alpha/ch3", "/alpha/ch4"],
+            "aggregateFunction": "max"
+        }
+    ]
+}
+```
+
+Each aggregate endpoint has:
+- `virtualAddress`: The new OSC address that will represent the aggregated data
+- `sourceAddresses`: Array of real OSC addresses whose data will be combined
+- `aggregateFunction`: The function to use for aggregation. Can be one of:
+  - `"average"`: Calculate the average of all source values
+  - `"nonZeroAverage"`: Calculate the average of all non-zero source values
+  - `"sum"`: Calculate the sum of all source values
+  - `"max"`: Find the maximum value among all sources
+  - `"min"`: Find the minimum value among all sources
+
+### Using Aggregate Endpoints
+
+Virtual addresses work just like real addresses in the API:
+
+```http
+GET /api/messages/virtual/average/eeg
+```
+
+Will return the aggregated data from the specified source addresses.
+
+### New Endpoints for Aggregate Addresses
+
+Two new endpoints are available to help work with virtual addresses:
+
+```http
+GET /api/virtual-addresses
+```
+
+Returns an array of all configured virtual addresses.
+
+```http
+GET /api/real-addresses
+```
+
+Returns an array of all real OSC addresses, excluding virtual ones.
+
+### How It Works
+
+1. When the OSC Listener receives data on any of the source addresses, it stores it in the normal way
+2. When a request is made for a virtual address, it:
+   - Retrieves the latest transformed data from each source address
+   - Applies the specified aggregate function to combine the data
+   - Returns the result
+
+This allows for real-time calculation of derived metrics from multiple data sources.
