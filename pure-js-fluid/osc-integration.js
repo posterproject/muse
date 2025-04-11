@@ -14,7 +14,7 @@ class OSCIntegration {
             ['theta', '/muse/theta_average']
         ]);
         this.lastUpdate = 0;
-        this.updateInterval = 100; // Update every 100ms like the wave visualizer
+        this.updateInterval = 500; // Update every 500ms for smoother updates
         this.waveData = {
             alpha: 0,
             beta: 0,
@@ -64,8 +64,8 @@ class OSCIntegration {
             this.serverStarted = true;
             this.updateStatus('Connected');
             
-            // Start the update loop
-            this.update();
+            // Start the update loop with setInterval
+            this.updateIntervalId = setInterval(() => this.update(), this.updateInterval);
             
             // Start periodic status checking
             this.statusCheckInterval = setInterval(() => this.checkServerStatus(), 3000);
@@ -103,31 +103,28 @@ class OSCIntegration {
 
     async update() {
         if (!this.serverStarted) {
+            console.log('Update called but server not started');
             return;
         }
 
-        const now = Date.now();
-        if (now - this.lastUpdate >= this.updateInterval) {
-            try {
-                await this.fetchWaveData();
-                this.applyWaveData();
-                this.updateStatus('Connected', true);
-                this.lastUpdate = now;
-            } catch (error) {
-                console.error('Error updating wave data:', error);
-                this.updateStatus('Connection error');
-            }
+        console.log('Starting update cycle');
+        try {
+            await this.fetchWaveData();
+            this.applyWaveData();
+            this.updateStatus('Connected', true);
+        } catch (error) {
+            console.error('Error in update cycle:', error);
+            this.updateStatus('Connection error');
         }
-
-        // Continue the update loop
-        requestAnimationFrame(() => this.update());
     }
 
     async fetchWaveData() {
+        console.log('Starting fetchWaveData');
         for (const [wave, address] of this.waveAddresses) {
+            console.log(`Fetching data for ${wave} at ${address}`);
             try {
                 const response = await fetch(`${this.baseUrl}/messages${address}`);
-                
+                console.log(`Response status for ${wave}:`, response.status);
                 if (!response.ok) {
                     console.error(`Failed to fetch ${wave} data:`, response.statusText);
                     
@@ -140,17 +137,48 @@ class OSCIntegration {
                         continue;
                     }
                     
-                    const fallbackData = await fallbackResponse.json();
-                    const value = fallbackData[fallbackAddress] ? fallbackData[fallbackAddress][0] : 0;
-                    this.waveData[wave] = value;
-                    console.log(`Fetched ${wave} data from fallback:`, value);
+                    const fallbackText = await fallbackResponse.text();
+                    console.log(`Fallback response for ${wave}:`, fallbackText);
+                    
+                    try {
+                        const fallbackData = JSON.parse(fallbackText);
+                        if (Array.isArray(fallbackData) && fallbackData.length > 0) {
+                            const value = parseFloat(fallbackData[0]);
+                            if (!isNaN(value)) {
+                                this.waveData[wave] = value;
+                                console.log(`Using fallback ${wave} value:`, value);
+                            } else {
+                                console.error(`Invalid number format for ${wave} fallback:`, fallbackData[0]);
+                            }
+                        } else {
+                            console.error(`Unexpected fallback data format for ${wave}:`, fallbackData);
+                        }
+                    } catch (parseError) {
+                        console.error(`Error parsing fallback data for ${wave}:`, parseError);
+                    }
                     continue;
                 }
                 
-                const data = await response.json();
-                const value = data[address] ? data[address][0] : 0;
-                this.waveData[wave] = value;
-                console.log(`Fetched ${wave} data:`, value);
+                const responseText = await response.text();
+                console.log(`Response for ${wave}:`, responseText);
+                
+                try {
+                    const data = JSON.parse(responseText);
+                    // Check if the data is an array with at least one element
+                    if (Array.isArray(data) && data.length > 0) {
+                        const value = parseFloat(data[0]);
+                        if (!isNaN(value)) {
+                            this.waveData[wave] = value;
+                            console.log(`Using ${wave} value:`, value);
+                        } else {
+                            console.error(`Invalid number format for ${wave}:`, data[0]);
+                        }
+                    } else {
+                        console.error(`Unexpected data format for ${wave}:`, data);
+                    }
+                } catch (parseError) {
+                    console.error(`Error parsing data for ${wave}:`, parseError);
+                }
             } catch (error) {
                 console.error(`Error fetching ${wave} data:`, error);
             }
@@ -158,11 +186,22 @@ class OSCIntegration {
     }
 
     applyWaveData() {
+        // Log raw wave data values
+        console.log('Raw wave data:', this.waveData);
+        
         // Map wave data to fluid parameters
         config.CURL = this.mapValue(this.waveData.alpha, 0, 1, 0, 50);
         config.SPLAT_FORCE = this.mapValue(this.waveData.beta, 0, 1, 1000, 15000);
         config.DENSITY_DISSIPATION = this.mapValue(this.waveData.gamma, 0, 1, 0.7, 0.99);
         config.PRESSURE = this.mapValue(this.waveData.theta, 0, 1, 0.3, 1.0);
+
+        // Log mapped values
+        console.log('Mapped values:', {
+            CURL: config.CURL,
+            SPLAT_FORCE: config.SPLAT_FORCE,
+            DENSITY_DISSIPATION: config.DENSITY_DISSIPATION,
+            PRESSURE: config.PRESSURE
+        });
 
         // Create a splat based on delta wave
         if (this.waveData.delta > 0.5) {
