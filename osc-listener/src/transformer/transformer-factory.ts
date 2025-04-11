@@ -2,60 +2,7 @@ import { AggregateConfig, AggregateFunction } from '../types/osc-listener';
 import { AggregateTransformer } from './aggregate-transformer';
 import { SimpleTransformer } from './transformer';
 
-const primaryWaveChannels = ['alpha', 'beta', 'gamma', 'delta', 'theta'];
-
-const elementTransform = (values: number[], address: string): number[] => {
-    // Check if this is a primary wave channel
-    const isPrimaryWave = primaryWaveChannels.some(channel => 
-        address.toLowerCase().includes(channel)
-    );
-    
-    if (!isPrimaryWave) {
-        return values; // Return unchanged for non-primary channels
-    }
-    
-    // For primary waves, calculate average of non-zero values
-    const nonZeroValues = values.filter(v => v !== 0);
-    if (nonZeroValues.length === 0) {
-        return [0]; // Return [0] if all values are zero
-    }
-    
-    const average = nonZeroValues.reduce((sum, val) => sum + val, 0) / nonZeroValues.length;
-    return [average];
-};
-
-const averageTransform = (values: number[][]): number[] => {
-    if (values.length === 0) return [];
-    
-    // Use first array as reference length
-    const referenceLength = values[0].length;
-    
-    // Initialize accumulator with zeros and counts
-    const initial = {
-        sums: new Array(referenceLength).fill(0),
-        counts: new Array(referenceLength).fill(0)
-    };
-    
-    // Process all arrays
-    const { sums, counts } = values.reduce((acc, array) => {
-        // For each column up to the reference length
-        for (let i = 0; i < referenceLength; i++) {
-            if (i < array.length) {
-                acc.sums[i] += array[i];
-                acc.counts[i]++;
-            }
-        }
-        return acc;
-    }, initial);
-    
-    // Compute averages
-    return sums.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
-};
-
-const lastValTransform = (values: number[][]): number[] => {
-    if (values.length === 0) return [];
-    return values[values.length - 1];
-};
+const primaryWaveChannels = ['alpha', 'beta', 'gamma', 'delta', 'theta'] as const;
 
 // Aggregate Functions
 export const aggregateFunctions = {
@@ -191,6 +138,74 @@ export const aggregateFunctions = {
     }
 };
 
+// Helper function to create brain wave aggregate config
+export const createBrainWaveAggregate = (waveName: string): AggregateConfig => ({
+    virtualAddress: `/muse/${waveName}_average`,
+    sourceAddresses: [
+        `/muse/elements/${waveName}_absolute1`,
+        `/muse/elements/${waveName}_absolute2`,
+        `/muse/elements/${waveName}_absolute3`,
+        `/muse/elements/${waveName}_absolute4`
+    ],
+    aggregateFunction: aggregateFunctions.nonZeroAverage
+});
+
+// Create default aggregate endpoints for all brain waves
+const defaultBrainWaveAggregates: AggregateConfig[] = primaryWaveChannels.map(createBrainWaveAggregate);
+
+const elementTransform = (values: number[], address: string): number[] => {
+    // Check if this is a primary wave channel
+    const isPrimaryWave = primaryWaveChannels.some(channel => 
+        address.toLowerCase().includes(channel)
+    );
+    
+    if (!isPrimaryWave) {
+        return values; // Return unchanged for non-primary channels
+    }
+    
+    // For primary waves, calculate average of non-zero values
+    const nonZeroValues = values.filter(v => v !== 0);
+    if (nonZeroValues.length === 0) {
+        return [0]; // Return [0] if all values are zero
+    }
+    
+    const average = nonZeroValues.reduce((sum, val) => sum + val, 0) / nonZeroValues.length;
+    return [average];
+};
+
+const averageTransform = (values: number[][]): number[] => {
+    if (values.length === 0) return [];
+    
+    // Use first array as reference length
+    const referenceLength = values[0].length;
+    
+    // Initialize accumulator with zeros and counts
+    const initial = {
+        sums: new Array(referenceLength).fill(0),
+        counts: new Array(referenceLength).fill(0)
+    };
+    
+    // Process all arrays
+    const { sums, counts } = values.reduce((acc, array) => {
+        // For each column up to the reference length
+        for (let i = 0; i < referenceLength; i++) {
+            if (i < array.length) {
+                acc.sums[i] += array[i];
+                acc.counts[i]++;
+            }
+        }
+        return acc;
+    }, initial);
+    
+    // Compute averages
+    return sums.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
+};
+
+const lastValTransform = (values: number[][]): number[] => {
+    if (values.length === 0) return [];
+    return values[values.length - 1];
+};
+
 export class TransformerFactory {
     static createAverageTransformer(): SimpleTransformer {
         return new SimpleTransformer(averageTransform, elementTransform);
@@ -202,8 +217,10 @@ export class TransformerFactory {
     
     static createAggregateTransformer(
         baseTransformer: SimpleTransformer,
-        aggregateConfigs: AggregateConfig[]
+        aggregateConfigs?: AggregateConfig[]
     ): AggregateTransformer {
-        return new AggregateTransformer(baseTransformer, aggregateConfigs);
+        // If no configs provided, use default brain wave aggregates
+        const configs = aggregateConfigs ?? defaultBrainWaveAggregates;
+        return new AggregateTransformer(baseTransformer, configs);
     }
 } 
