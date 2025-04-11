@@ -4,10 +4,14 @@ import { SimpleTransformer } from './transformer';
 export class AggregateTransformer implements MessageTransformer {
     private baseTransformer: MessageTransformer;
     private virtualAddresses: Map<string, AggregateConfig>;
+    private virtualBuffers: Map<string, number[][]>;
+    private readAddresses: Set<string>;
 
     constructor(baseTransformer: MessageTransformer, aggregateConfigs: AggregateConfig[] = []) {
         this.baseTransformer = baseTransformer;
         this.virtualAddresses = new Map();
+        this.virtualBuffers = new Map();
+        this.readAddresses = new Set();
         
         // Register all aggregate configs
         for (const config of aggregateConfigs) {
@@ -20,13 +24,29 @@ export class AggregateTransformer implements MessageTransformer {
      */
     registerVirtualAddress(config: AggregateConfig): void {
         this.virtualAddresses.set(config.virtualAddress, config);
+        this.virtualBuffers.set(config.virtualAddress, []);
     }
 
     /**
-     * Pass incoming messages to the base transformer
+     * Pass incoming messages to the base transformer and update virtual buffers if needed
      */
     addMessage(message: OSCMessage): void {
+        // First, pass the message to the base transformer
         this.baseTransformer.addMessage(message);
+        
+        // Then, check if this message affects any virtual addresses
+        for (const [virtualAddress, config] of this.virtualAddresses.entries()) {
+            if (config.sourceAddresses.includes(message.address)) {
+                if (this.readAddresses.has(virtualAddress)) {
+                    // If this virtual address has been read and new data is coming in,
+                    // compute the new value and update the buffer
+                    const newValue = this.computeVirtualAddress(virtualAddress);
+                    if (newValue !== null) {
+                        this.virtualBuffers.set(virtualAddress, [newValue]);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -81,7 +101,16 @@ export class AggregateTransformer implements MessageTransformer {
     getTransformedAddress(address: string): number[] | null {
         // Check if this is a virtual address
         if (this.virtualAddresses.has(address)) {
-            return this.getTransformedVirtualAddress(address);
+            // Mark this address as read
+            this.readAddresses.add(address);
+            
+            // Get the latest value
+            const value = this.computeVirtualAddress(address);
+            if (value !== null) {
+                // Store in buffer
+                this.virtualBuffers.set(address, [value]);
+            }
+            return value;
         }
         
         // Otherwise, delegate to base transformer
@@ -89,12 +118,17 @@ export class AggregateTransformer implements MessageTransformer {
     }
 
     /**
-     * Get buffer contents for a real address
+     * Get buffer contents for a real or virtual address
      */
     getBufferContents(address: string): number[][] {
-        // Virtual addresses don't have buffer contents
+        // For virtual addresses, return their buffer contents
         if (this.virtualAddresses.has(address)) {
-            return [];
+            // Get the latest value to ensure buffer is up to date
+            const value = this.computeVirtualAddress(address);
+            if (value !== null) {
+                this.virtualBuffers.set(address, [value]);
+            }
+            return this.virtualBuffers.get(address) || [];
         }
         
         // For SimpleTransformer, use its getBufferContents method
@@ -107,13 +141,13 @@ export class AggregateTransformer implements MessageTransformer {
     }
 
     /**
-     * Get the transformed value for a virtual address by applying its aggregate function
+     * Compute the transformed value for a virtual address by applying its aggregate function
      */
-    private getTransformedVirtualAddress(virtualAddress: string): number[] | null {
+    private computeVirtualAddress(virtualAddress: string): number[] | null {
         const config = this.virtualAddresses.get(virtualAddress);
         if (!config) return null;
         
-        // Collect values from all source addresses
+        // Get the latest values from all source addresses
         const sourceValues = new Map<string, number[]>();
         for (const sourceAddress of config.sourceAddresses) {
             const value = this.baseTransformer.getTransformedAddress(sourceAddress);

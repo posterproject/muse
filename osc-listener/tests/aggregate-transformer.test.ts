@@ -212,4 +212,173 @@ describe('AggregateTransformer', () => {
         expect(realAddresses).toContain('/source2');
         expect(realAddresses.length).toBe(2);
     });
+
+    it('should store last computed value in buffer for virtual addresses', () => {
+        const baseTransformer = new SimpleTransformer(identityTransform);
+        const aggregateTransformer = new AggregateTransformer(baseTransformer, [
+            {
+                virtualAddress: '/virtual/average',
+                sourceAddresses: ['/source1', '/source2'],
+                aggregateFunction: aggregateFunctions.average
+            }
+        ]);
+        
+        // Add initial messages
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [10, 20, 30],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        baseTransformer.addMessage({
+            address: '/source2',
+            args: [20, 40, 60],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        // Get the value (should compute and store in buffer)
+        const value = aggregateTransformer.getTransformedAddress('/virtual/average');
+        expect(value).toEqual([15, 30, 45]);
+        
+        // Check buffer contents
+        const bufferContents = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(bufferContents).toEqual([[15, 30, 45]]);
+    });
+
+    it('should persist virtual address buffer after reading until new source data arrives', () => {
+        const baseTransformer = new SimpleTransformer(identityTransform);
+        const aggregateTransformer = new AggregateTransformer(baseTransformer, [
+            {
+                virtualAddress: '/virtual/average',
+                sourceAddresses: ['/source1', '/source2'],
+                aggregateFunction: aggregateFunctions.average
+            }
+        ]);
+        
+        // Add initial messages
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [10, 20, 30],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        baseTransformer.addMessage({
+            address: '/source2',
+            args: [20, 40, 60],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        // Get the value (should compute and store in buffer)
+        const value = aggregateTransformer.getTransformedAddress('/virtual/average');
+        expect(value).toEqual([15, 30, 45]);
+        
+        // Buffer should persist
+        const bufferContents = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(bufferContents).toEqual([[15, 30, 45]]);
+        
+        // Add new message to one source
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [30, 60, 90],
+            timestamp: 2000
+        } as OSCMessage);
+        
+        // Buffer should be updated with new computed value
+        const updatedBufferContents = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(updatedBufferContents).toEqual([[25, 50, 75]]); // Average of [30, 60, 90] and [20, 40, 60]
+    });
+
+    it('should handle multiple virtual addresses independently', () => {
+        const baseTransformer = new SimpleTransformer(identityTransform);
+        const aggregateTransformer = new AggregateTransformer(baseTransformer, [
+            {
+                virtualAddress: '/virtual/average',
+                sourceAddresses: ['/source1', '/source2'],
+                aggregateFunction: aggregateFunctions.average
+            },
+            {
+                virtualAddress: '/virtual/sum',
+                sourceAddresses: ['/source1', '/source2'],
+                aggregateFunction: aggregateFunctions.sum
+            }
+        ]);
+        
+        // Add initial messages
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [10, 20, 30],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        baseTransformer.addMessage({
+            address: '/source2',
+            args: [20, 40, 60],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        // Read from average address
+        const averageValue = aggregateTransformer.getTransformedAddress('/virtual/average');
+        expect(averageValue).toEqual([15, 30, 45]);
+        
+        // Read from sum address
+        const sumValue = aggregateTransformer.getTransformedAddress('/virtual/sum');
+        expect(sumValue).toEqual([30, 60, 90]);
+        
+        // Add new message to one source
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [30, 60, 90],
+            timestamp: 2000
+        } as OSCMessage);
+        
+        // Check both buffers are updated independently
+        const averageBuffer = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(averageBuffer).toEqual([[25, 50, 75]]); // Average of [30, 60, 90] and [20, 40, 60]
+        
+        const sumBuffer = aggregateTransformer.getBufferContents('/virtual/sum');
+        expect(sumBuffer).toEqual([[50, 100, 150]]); // Sum of [30, 60, 90] and [20, 40, 60]
+    });
+
+    it('should handle missing source data gracefully', () => {
+        const baseTransformer = new SimpleTransformer(identityTransform);
+        const aggregateTransformer = new AggregateTransformer(baseTransformer, [
+            {
+                virtualAddress: '/virtual/average',
+                sourceAddresses: ['/source1', '/source2', '/source3'],
+                aggregateFunction: aggregateFunctions.average
+            }
+        ]);
+        
+        // Add messages to only two source addresses
+        baseTransformer.addMessage({
+            address: '/source1',
+            args: [10, 20, 30],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        baseTransformer.addMessage({
+            address: '/source2',
+            args: [20, 40, 60],
+            timestamp: 1000
+        } as OSCMessage);
+        
+        // Should compute average using available data
+        const value = aggregateTransformer.getTransformedAddress('/virtual/average');
+        expect(value).toEqual([15, 30, 45]); // Average of [10, 20, 30] and [20, 40, 60]
+        
+        // Buffer should contain the computed value
+        const bufferContents = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(bufferContents).toEqual([[15, 30, 45]]);
+        
+        // Add message to the third source
+        baseTransformer.addMessage({
+            address: '/source3',
+            args: [30, 60, 90],
+            timestamp: 2000
+        } as OSCMessage);
+        
+        // Should update to include all three sources
+        const updatedBufferContents = aggregateTransformer.getBufferContents('/virtual/average');
+        expect(updatedBufferContents).toEqual([[20, 40, 60]]); // Average of [10, 20, 30], [20, 40, 60], and [30, 60, 90]
+    });
 }); 
