@@ -1,3 +1,11 @@
+// Add type declarations at the top of the file
+declare global {
+    interface Window {
+        config: any;
+        updateKeywords: () => void;
+    }
+}
+
 import { OSCServerManager } from './osc-server-manager';
 import { OSCDataFetcher } from './osc-data-fetcher';
 import { FluidOSCMapper } from './fluid-osc-mapper';
@@ -104,16 +112,33 @@ export class FluidOSCController {
      * Update the fluid simulation with new parameters
      */
     private updateFluidSimulation(config: any): void {
-        // Access the global config object from webgl-demo.ts
-        if (typeof window !== 'undefined' && (window as any).config) {
-            const globalConfig = (window as any).config;
+        if (!this.isRunning) return;
+
+        try {
+            // Ensure window.config exists
+            if (!window.config) {
+                console.error('Global config object not found');
+                return;
+            }
+
+            // Debug log the incoming config
+            console.log('Updating fluid simulation with config:', config);
+
+            // Update only the relevant properties
+            const properties = ['CURL', 'SPLAT_FORCE', 'DENSITY_DISSIPATION', 'VELOCITY_DISSIPATION', 'PRESSURE'];
+            properties.forEach(prop => {
+                if (config[prop] !== undefined) {
+                    window.config[prop] = config[prop];
+                    console.log(`Updated ${prop} to ${config[prop]}`);
+                }
+            });
             
-            // Update the fluid parameters
-            globalConfig.CURL = config.CURL;
-            globalConfig.SPLAT_FORCE = config.SPLAT_FORCE;
-            globalConfig.DENSITY_DISSIPATION = config.DENSITY_DISSIPATION;
-            globalConfig.VELOCITY_DISSIPATION = config.VELOCITY_DISSIPATION;
-            globalConfig.PRESSURE = config.PRESSURE;
+            // Force a visual update
+            if (window.updateKeywords) {
+                window.updateKeywords();
+            }
+        } catch (error) {
+            console.error('Error updating fluid simulation:', error);
         }
     }
 

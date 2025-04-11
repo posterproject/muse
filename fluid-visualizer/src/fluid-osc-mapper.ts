@@ -9,10 +9,10 @@ interface FluidConfig {
 }
 
 export class FluidOSCMapper {
-    private static readonly CURL_RANGE = { min: 0, max: 30 };
-    private static readonly SPLAT_FORCE_RANGE = { min: 0, max: 6000 };
-    private static readonly DISSIPATION_RANGE = { min: 0, max: 1 };
-    private static readonly PRESSURE_RANGE = { min: 0, max: 1 };
+    private static readonly CURL_RANGE = { min: 0, max: 100 };
+    private static readonly SPLAT_FORCE_RANGE = { min: 500, max: 5000 };
+    private static readonly DISSIPATION_RANGE = { min: 0.7, max: 0.99 };
+    private static readonly PRESSURE_RANGE = { min: 0.3, max: 1.0 };
 
     /**
      * Map EEG wave data to fluid simulation parameters
