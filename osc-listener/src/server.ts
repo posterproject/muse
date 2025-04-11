@@ -111,10 +111,9 @@ app.post('/api/start', (req, res) => {
         // Create the base transformer
         const baseTransformer = TransformerFactory.createLastValueTransformer();
         
-        // Create aggregate transformer if aggregate endpoints are configured
-        if (config.aggregateEndpoints && config.aggregateEndpoints.length > 0) {
-            // Process the aggregate endpoints to ensure they have a valid aggregateFunction
-            const processedConfigs: AggregateConfig[] = config.aggregateEndpoints.map(endpoint => {
+        // Create aggregate transformer with custom configs if provided, otherwise use defaults
+        const processedConfigs: AggregateConfig[] | undefined = config.aggregateEndpoints && config.aggregateEndpoints.length > 0
+            ? config.aggregateEndpoints.map(endpoint => {
                 // If the function is provided as a string (e.g., "average"), map it to the actual function
                 if (typeof endpoint.aggregateFunction === 'string') {
                     const funcName = endpoint.aggregateFunction;
@@ -135,26 +134,26 @@ app.post('/api/start', (req, res) => {
                 }
                 
                 return endpoint;
-            });
-            
-            transformer = TransformerFactory.createAggregateTransformer(baseTransformer, processedConfigs);
-            console.log(`Created aggregate transformer with ${processedConfigs.length} virtual addresses`);
-        } else {
-            transformer = baseTransformer;
-        }
+            })
+            : undefined;
+        
+        transformer = TransformerFactory.createAggregateTransformer(baseTransformer, processedConfigs);
+        console.log(`Created aggregate transformer with ${processedConfigs ? processedConfigs.length : 'default'} virtual addresses`);
         
         oscListener = new OSCListener(config, transformer);
         currentConfig = config;
         res.json({ 
             success: true,
             sessionId,
-            config: currentConfig,
-            noChanges: false
+            config
         });
     } catch (error) {
         console.error('Error starting OSC listener:', error);
-        sessions.delete(sessionId);
-        res.status(500).json({ error: String(error) });
+        res.status(500).json({ 
+            success: false, 
+            error: 'Error starting OSC listener',
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 
