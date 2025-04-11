@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { AggregateTransformer } from '../src/transformer/aggregate-transformer';
 import { SimpleTransformer } from '../src/transformer/transformer';
-import { OSCMessage } from '../src/types/osc';
+import { OSCMessage } from '../src/types/osc-listener';
 import { aggregateFunctions } from '../src/transformer/transformer-factory';
 
 describe('AggregateTransformer', () => {

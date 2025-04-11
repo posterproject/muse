@@ -1,4 +1,4 @@
-import { OSCMessage, TransformFunction, ElementTransformFunction, AddressBuffer, MessageTransformer } from '../types/osc';
+import { OSCMessage, TransformFunction, ElementTransformFunction, AddressBuffer, MessageTransformer } from '../types/osc-listener';
 
 export class SimpleTransformer implements MessageTransformer {
     private buffers: Map<string, AddressBuffer>;

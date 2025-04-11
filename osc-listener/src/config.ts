@@ -1,4 +1,4 @@
-import { AggregateConfig } from './types/osc';
+import { AggregateConfig } from './types/osc-listener';
 
 export enum DebugLevel {
     None = 0,
@@ -13,8 +13,8 @@ export interface Config {
     updateRate: number; // in Hz
     serverPort: number;
     debug: DebugLevel;
-    recordData?: boolean; // Whether to record raw OSC data to a file
-    recordFileName?: string;// The filename to record data to
+    recordData: boolean; // Whether to record raw OSC data to a file
+    recordFileName: string;// The filename to record data to
     aggregateEndpoints?: AggregateConfig[];
 }
 

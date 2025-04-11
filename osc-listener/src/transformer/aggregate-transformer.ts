@@ -1,4 +1,4 @@
-import { AggregateConfig, AggregateFunction, MessageTransformer, OSCMessage } from '../types/osc';
+import { AggregateConfig, AggregateFunction, MessageTransformer, OSCMessage } from '../types/osc-listener';
 import { SimpleTransformer } from './transformer';
 
 export class AggregateTransformer implements MessageTransformer {

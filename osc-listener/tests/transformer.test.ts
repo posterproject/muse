@@ -1,5 +1,5 @@
 import { SimpleTransformer } from '../src/transformer/transformer';
-import { OSCMessage } from '../src/types/osc';
+import { OSCMessage } from '../src/types/osc-listener';
 import { describe, it, expect } from '@jest/globals';
 
 describe('SimpleTransformer', () => {

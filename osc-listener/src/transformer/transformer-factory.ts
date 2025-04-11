@@ -1,4 +1,4 @@
-import { AggregateConfig, AggregateFunction } from '../types/osc';
+import { AggregateConfig, AggregateFunction } from '../types/osc-listener';
 import { AggregateTransformer } from './aggregate-transformer';
 import { SimpleTransformer } from './transformer';
 

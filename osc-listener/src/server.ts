@@ -4,7 +4,7 @@ import { Config, defaultConfig, DebugLevel } from './config';
 import { OSCListener } from './osc-listener';
 import { TransformerFactory, aggregateFunctions } from './transformer/transformer-factory';
 import { AggregateTransformer } from './transformer/aggregate-transformer';
-import { MessageTransformer, AggregateConfig } from './types/osc';
+import { MessageTransformer, AggregateConfig } from './types/osc-listener';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
