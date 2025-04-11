@@ -861,36 +861,7 @@ let bloom;
 let bloomFramebuffers = [];
 let sunrays;
 let sunraysTemp;
-
-function createDitheringTexture() {
-    const size = 64;
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-
-    // Create a simple dithering pattern
-    const data = new Uint8Array(size * size);
-    for (let i = 0; i < size * size; i++) {
-        data[i] = Math.floor(Math.random() * 256);
-    }
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, size, size, 0, gl.RED, gl.UNSIGNED_BYTE, data);
-
-    return {
-        texture,
-        width: size,
-        height: size,
-        attach (id) {
-            gl.activeTexture(gl.TEXTURE0 + id);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            return id;
-        }
-    };
-}
-
-let ditheringTexture = createDitheringTexture();
+let ditheringTexture = createTextureAsync('LDR_LLL1_0.png');
 
 const blurProgram            = new Program(blurVertexShader, blurShader);
 const copyProgram            = new Program(baseVertexShader, copyShader);
