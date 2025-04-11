@@ -1,4 +1,4 @@
-import * as osc from 'osc';
+import osc from 'osc';
 import { Config, DebugLevel } from './config';
 import { OSCMessage, MessageTransformer } from './types/osc-listener';
 import * as fs from 'fs';
