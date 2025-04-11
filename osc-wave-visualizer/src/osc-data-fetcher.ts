@@ -13,11 +13,11 @@ export class OSCDataFetcher {
     constructor(port: number = 3001) {
         this.baseUrl = `http://localhost:${port}/api/messages/`;
         this.waveAddresses = new Map([
-            ['alpha', '/muse/elements/alpha_absolute2'],
-            ['beta', '/muse/elements/beta_absolute2'],
-            ['delta', '/muse/elements/delta_absolute2'],
-            ['gamma', '/muse/elements/gamma_absolute2'],
-            ['theta', '/muse/elements/theta_absolute2']
+            ['alpha', '/muse/alpha_average'],
+            ['beta', '/muse/beta_average'],
+            ['delta', '/muse/delta_average'],
+            ['gamma', '/muse/gamma_average'],
+            ['theta', '/muse/theta_average']
         ]);
     }
 
@@ -37,7 +37,7 @@ export class OSCDataFetcher {
                 if (!response.ok) {
                     console.error(`Failed to fetch ${wave} data:`, response.statusText);
                     
-                    const fallbackAddress = `/muse/elements/${wave}_average`;
+                    const fallbackAddress = `/muse/elements/${wave}_absolute2`;
                     console.log(`Trying fallback address: ${fallbackAddress}`);
                     
                     const fallbackResponse = await fetch(`${this.baseUrl}${fallbackAddress}`);
@@ -60,4 +60,4 @@ export class OSCDataFetcher {
 
         return waveData;
     }
-} 
+}

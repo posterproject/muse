@@ -1,7 +1,6 @@
 import osc from 'osc';
 import { Config, DebugLevel } from './config';
-import { OSCMessage } from './types/osc';
-import { MessageTransformer } from './transformer/transformer';
+import { OSCMessage, MessageTransformer } from './types/osc-listener';
 import * as fs from 'fs';
 import * as path from 'path';
 
