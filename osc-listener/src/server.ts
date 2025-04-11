@@ -17,6 +17,45 @@ let currentConfig: Config | null = null;
 const sessions = new Map<string, { timestamp: number }>();
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout
 
+// Helper function to update session timestamps for active clients
+const updateSessionTimestamps = (sessionId?: string) => {
+    const now = Date.now();
+    
+    if (sessionId && sessions.has(sessionId)) {
+        // Update specific session if sessionId provided
+        const session = sessions.get(sessionId)!;
+        session.timestamp = now;
+    } else {
+        // Update all sessions if no sessionId provided
+        for (const [_, session] of sessions.entries()) {
+            session.timestamp = now;
+        }
+    }
+};
+
+// Helper function to extract sessionId from request headers
+const getSessionIdFromRequest = (req: express.Request): string | undefined => {
+    return req.header('X-Session-ID');
+};
+
+// Middleware to update session timestamp for all API requests
+const updateSessionTimestampMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!oscListener) {
+        next();
+        return;
+    }
+    
+    const sessionId = getSessionIdFromRequest(req);
+    if (sessionId && sessions.has(sessionId)) {
+        updateSessionTimestamps(sessionId);
+    }
+    
+    next();
+};
+
+// Apply the middleware to all API routes
+app.use('/api', updateSessionTimestampMiddleware);
+
 // Cleanup expired sessions periodically
 const sessionCleanupInterval = setInterval(() => {
     const now = Date.now();
@@ -184,10 +223,7 @@ app.get('/api/status', (_, res) => {
         });
     }
     
-    // Update timestamps for active sessions to prevent timeouts
-    for (const [sessionId, session] of sessions.entries()) {
-        session.timestamp = Date.now();
-    }
+    // Session timestamp is updated by middleware
     
     return res.json({
         running: true,
@@ -203,6 +239,9 @@ app.get('/api/addresses', (_, res) => {
         res.json([]);
         return;
     }
+    
+    // Session timestamp is updated by middleware
+    
     res.json(transformer.getAddresses());
 });
 
@@ -211,6 +250,9 @@ app.get('/api/messages', (_, res) => {
         res.json({});
         return;
     }
+    
+    // Session timestamp is updated by middleware
+    
     if (defaultConfig.debug >= DebugLevel.Medium) {
         console.log(`Addresses: ${transformer.getAddresses()}`);
         for (const address of transformer.getAddresses()) {
@@ -227,6 +269,9 @@ app.get('/api/messages/:address', (req, res) => {
         res.status(404).json({ error: 'No transformer available' });
         return;
     }
+    
+    // Session timestamp is updated by middleware
+    
     const value = transformer.getTransformedAddress(req.params.address);
     if (value === null) {
         res.status(404).json({ error: 'Address not found' });
@@ -244,6 +289,8 @@ app.get('/api/messages/*', (req, res) => {
         res.status(404).json({ error: 'No transformer available' });
         return;
     }
+    
+    // Session timestamp is updated by middleware
     
     const pathParam = req.path.substring('/api/messages/'.length);
     const address = pathParam.startsWith('/') ? pathParam : '/' + pathParam;
@@ -279,6 +326,8 @@ app.get('/api/virtual-addresses', (_, res) => {
         return;
     }
     
+    // Session timestamp is updated by middleware
+    
     if (transformer instanceof AggregateTransformer) {
         res.json(transformer.getVirtualAddresses());
     } else {
@@ -292,6 +341,8 @@ app.get('/api/real-addresses', (_, res) => {
         res.json([]);
         return;
     }
+    
+    // Session timestamp is updated by middleware
     
     if (transformer instanceof AggregateTransformer) {
         res.json(transformer.getRealAddresses());
