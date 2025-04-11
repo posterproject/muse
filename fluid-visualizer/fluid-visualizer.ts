@@ -27,6 +27,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import { FluidOSCController } from './src/fluid-osc-controller';
+
 const canvas = document.getElementsByTagName('canvas')![0];
 resizeCanvas();
 
@@ -1506,6 +1508,24 @@ function handleOSCMessage(address: string, args: any[]) {
         config.EEG_DELTA
     );
 }
+
+// Initialize OSC controller
+const oscController = new FluidOSCController();
+
+// Start the OSC controller when the page loads
+window.addEventListener('load', async () => {
+    const started = await oscController.start();
+    if (started) {
+        console.log('OSC controller started successfully');
+    } else {
+        console.error('Failed to start OSC controller');
+    }
+});
+
+// Stop the OSC controller when the page unloads
+window.addEventListener('unload', async () => {
+    await oscController.stop();
+});
 
 // Start the simulation loop
 update();
