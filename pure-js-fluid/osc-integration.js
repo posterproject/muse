@@ -189,6 +189,14 @@ class OSCIntegration {
         // Log raw wave data values
         console.log('Raw wave data:', this.waveData);
         
+        // Available fluid simulation parameters and their ranges:
+        // - CURL: Controls vorticity (swirling motion) [0-50]
+        // - SPLAT_FORCE: Controls the force of new splats [1000-15000]
+        // - DENSITY_DISSIPATION: Controls how quickly dye dissipates [0.7-0.99]
+        // - PRESSURE: Controls pressure in the simulation [0.3-1.0]
+        // - VELOCITY_DISSIPATION: Controls how quickly velocity dissipates [0.0-4.0]
+        // - SPLAT_RADIUS: Controls the size of new splats [0.01-1.0]
+        
         // Map wave data to fluid parameters
         config.CURL = this.mapValue(this.waveData.alpha, 0, 1, 0, 50);
         config.SPLAT_FORCE = this.mapValue(this.waveData.beta, 0, 1, 1000, 15000);
