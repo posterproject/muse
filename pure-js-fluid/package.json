@@ -1,0 +1,11 @@
+{
+  "name": "pure-js-fluid",
+  "version": "1.0.0",
+  "description": "Pure JavaScript fluid simulation with OSC integration",
+  "scripts": {
+    "start": "http-server -p 8000"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+} 
