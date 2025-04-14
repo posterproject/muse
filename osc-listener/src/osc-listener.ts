@@ -3,6 +3,7 @@ import { Config, DebugLevel } from './config';
 import { OSCMessage, MessageTransformer } from './types/osc-listener';
 import * as fs from 'fs';
 import * as path from 'path';
+import logger, { debugLog } from './logger';
 
 export class OSCListener {
     private udpPort: osc.UDPPort;
@@ -22,7 +23,7 @@ export class OSCListener {
         });
 
         this.udpPort.on('ready', () => {
-            console.log(`OSC listener ready on ${config.localAddress}:${config.localPort}`);
+            logger.info(`OSC listener ready on ${config.localAddress}:${config.localPort}`);
         });
 
         // Initialize file recording if enabled
@@ -31,9 +32,8 @@ export class OSCListener {
         }
 
         this.udpPort.on('message', (oscMessage: any) => {
-            if (this.config.debug >= DebugLevel.High) {
-                console.log('Raw OSC Message:', oscMessage);
-            }
+            debugLog(DebugLevel.High, 'Raw OSC Message', { message: oscMessage });
+            
             const message: OSCMessage = {
                 address: oscMessage.address,
                 args: oscMessage.args.map((arg: any) => {
@@ -43,17 +43,13 @@ export class OSCListener {
                     if (arg && typeof arg === 'object' && 'value' in arg) {
                         return arg.value;
                     }
-                    if (this.config.debug >= DebugLevel.High) {
-                        console.log('Non-number value:', arg);
-                        console.log('Non-number value type:', typeof arg);
-                    }
+                    debugLog(DebugLevel.High, 'Non-number value', { value: arg, type: typeof arg });
                     return 0; // Default to 0 if value is not a number
                 }),
                 timestamp: Date.now()
             };
-            if (this.config.debug >= DebugLevel.High) {
-                console.log('Processed Message:', message);
-            }
+            
+            debugLog(DebugLevel.High, 'Processed Message', { message });
             
             // Record message if recording is enabled
             if (this.config.recordData) {
@@ -64,7 +60,7 @@ export class OSCListener {
         });
 
         this.udpPort.on('error', (err: Error) => {
-            console.error('OSC error:', err);
+            logger.error('OSC error', { error: err });
         });
 
         this.udpPort.open();
@@ -72,12 +68,12 @@ export class OSCListener {
 
     private initializeRecording(): void {
         const filePath = path.resolve(process.cwd(), this.config.recordFileName);
-        console.log(`Initializing OSC recording to ${filePath}`);
+        logger.info(`Initializing OSC recording to ${filePath}`);
         
         // Create file stream
         this.fileStream = fs.createWriteStream(filePath, { flags: 'w' });
         this.fileStream.on('error', (err) => {
-            console.error('Error writing to recording file:', err);
+            logger.error('Error writing to recording file', { error: err });
         });
         
         // Set up periodic flushing (every 5 seconds)
@@ -104,9 +100,7 @@ export class OSCListener {
         this.fileStream.write(dataToWrite);
         this.recordBuffer = [];
         
-        if (this.config.debug >= DebugLevel.Medium) {
-            console.log(`Flushed ${this.recordBuffer.length} messages to recording file`);
-        }
+        debugLog(DebugLevel.Medium, `Flushed ${this.recordBuffer.length} messages to recording file`);
     }
 
     close() {
@@ -120,7 +114,7 @@ export class OSCListener {
                 this.flushInterval = null;
             }
             
-            console.log(`OSC recording completed and saved to ${this.config.recordFileName}`);
+            logger.info(`OSC recording completed and saved to ${this.config.recordFileName}`);
         }
         
         this.udpPort.close();

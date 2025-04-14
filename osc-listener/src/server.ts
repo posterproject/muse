@@ -6,6 +6,7 @@ import { TransformerFactory, aggregateFunctions } from './transformer/transforme
 import { AggregateTransformer } from './transformer/aggregate-transformer';
 import { MessageTransformer, AggregateConfig } from './types/osc-listener';
 import { v4 as uuidv4 } from 'uuid';
+import logger, { debugLog } from './logger';
 
 const app = express();
 app.use(cors());
@@ -69,7 +70,7 @@ const sessionCleanupInterval = setInterval(() => {
     }
     
     if (expiredCount > 0 && sessions.size === 0 && oscListener) {
-        console.log('All sessions expired, stopping OSC listener');
+        logger.info('All sessions expired, stopping OSC listener');
         oscListener.close();
         oscListener = null;
         transformer = null;
@@ -78,7 +79,7 @@ const sessionCleanupInterval = setInterval(() => {
 }, 60 * 1000); // Check every minute
 
 app.post('/api/start', (req, res) => {
-    console.log('Received start request:', req.body);
+    logger.info('Received start request', { body: req.body });
     
     // Generate a new session ID
     const sessionId = uuidv4();
@@ -86,7 +87,7 @@ app.post('/api/start', (req, res) => {
     
     // Check if OSC listener is already running
     if (oscListener) {
-        console.log('OSC listener already running, ignoring new configuration');
+        logger.info('OSC listener already running, ignoring new configuration');
         return res.json({
             success: true, 
             sessionId,
@@ -120,7 +121,7 @@ app.post('/api/start', (req, res) => {
                     const func = aggregateFunctions[funcName];
                     
                     if (!func) {
-                        console.warn(`Unknown aggregate function: ${funcName}. Using 'average' instead.`);
+                        logger.warn(`Unknown aggregate function: ${funcName}. Using 'average' instead.`);
                         return {
                             ...endpoint,
                             aggregateFunction: aggregateFunctions.average
@@ -138,7 +139,7 @@ app.post('/api/start', (req, res) => {
             : undefined;
         
         transformer = TransformerFactory.createAggregateTransformer(baseTransformer, processedConfigs);
-        console.log(`Created aggregate transformer with ${processedConfigs ? processedConfigs.length : 'default'} virtual addresses`);
+        logger.info(`Created aggregate transformer with ${processedConfigs ? processedConfigs.length : 'default'} virtual addresses`);
         
         oscListener = new OSCListener(config, transformer);
         currentConfig = config;
@@ -148,7 +149,7 @@ app.post('/api/start', (req, res) => {
             config
         });
     } catch (error) {
-        console.error('Error starting OSC listener:', error);
+        logger.error('Error starting OSC listener', { error });
         res.status(500).json({ 
             success: false, 
             error: 'Error starting OSC listener',
@@ -171,7 +172,7 @@ app.post('/api/stop', (req, res) => {
     
     // If no sessionId provided, assume it's an old client
     if (!sessionId || !sessions.has(sessionId)) {
-        console.log('Stop request without valid sessionId');
+        logger.info('Stop request without valid sessionId');
         if (sessions.size === 0) {
             // Clean shutdown if no sessions
             oscListener.close();
@@ -196,6 +197,7 @@ app.post('/api/stop', (req, res) => {
     
     // If this was the last session, stop the server
     if (sessions.size === 0) {
+        logger.info('Stopping server (last client disconnected)');
         oscListener.close();
         oscListener = null;
         transformer = null;
@@ -205,7 +207,7 @@ app.post('/api/stop', (req, res) => {
             message: 'Server stopped (last client disconnected)'
         });
     } else {
-        // Update the response that server is still running with remaining sessions
+        logger.info('Client disconnected, server still running', { remainingSessions: sessions.size });
         return res.json({
             success: true,
             message: 'Client disconnected, but server still running',
@@ -253,13 +255,15 @@ app.get('/api/messages', (_, res) => {
     // Session timestamp is updated by middleware
     
     if (defaultConfig.debug >= DebugLevel.Medium) {
-        console.log(`Addresses: ${transformer.getAddresses()}`);
+        debugLog(DebugLevel.Medium, 'Addresses', { addresses: transformer.getAddresses() });
         for (const address of transformer.getAddresses()) {
-            console.log(`Buffer contents for ${address}:\n${JSON.stringify(transformer.getBufferContents(address))}`);
+            debugLog(DebugLevel.Medium, `Buffer contents for ${address}`, { contents: transformer.getBufferContents(address) });
         }
     }
     const messagesObj = Object.fromEntries(transformer.getTransformedMessages());
-    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed messages:\n${JSON.stringify(messagesObj)}`);
+    if (defaultConfig.debug >= DebugLevel.Low) {
+        debugLog(DebugLevel.Low, 'Transformed messages', { messages: messagesObj });
+    }
     res.json(messagesObj);
 });
 
@@ -277,9 +281,11 @@ app.get('/api/messages/:address', (req, res) => {
         return;
     }
     if (defaultConfig.debug >= DebugLevel.Medium) {
-        console.log(`Buffer contents for ${req.params.address}:\n${JSON.stringify(transformer.getBufferContents(req.params.address))}`);
+        debugLog(DebugLevel.Medium, `Buffer contents for ${req.params.address}`, { contents: transformer.getBufferContents(req.params.address) });
     }
-    if (defaultConfig.debug >= DebugLevel.Low) console.log(`Transformed message for ${req.params.address}: ${JSON.stringify(value)}`);
+    if (defaultConfig.debug >= DebugLevel.Low) {
+        debugLog(DebugLevel.Low, `Transformed message for ${req.params.address}`, { value });
+    }
     res.json(value);
 });
 
@@ -295,7 +301,7 @@ app.get('/api/messages/*', (req, res) => {
     const address = pathParam.startsWith('/') ? pathParam : '/' + pathParam;
     
     if (defaultConfig.debug >= DebugLevel.Low) {
-        console.log(`Accessing address via path: ${address}`);
+        debugLog(DebugLevel.Low, `Accessing address via path`, { address });
     }
     
     const value = transformer.getTransformedAddress(address);
@@ -305,10 +311,10 @@ app.get('/api/messages/*', (req, res) => {
     }
     
     if (defaultConfig.debug >= DebugLevel.Medium) {
-        console.log(`Buffer contents for ${address}:\n${JSON.stringify(transformer.getBufferContents(address))}`);
+        debugLog(DebugLevel.Medium, `Buffer contents for ${address}`, { contents: transformer.getBufferContents(address) });
     }
     if (defaultConfig.debug >= DebugLevel.Low) {
-        console.log(`Transformed message for ${address}: ${JSON.stringify(value)}`);
+        debugLog(DebugLevel.Low, `Transformed message for ${address}`, { value });
     }
     
     res.json(value);
@@ -351,5 +357,5 @@ app.get('/api/real-addresses', (_, res) => {
 });
 
 app.listen(defaultConfig.serverPort, () => {
-    console.log(`Server running on port ${defaultConfig.serverPort}`);
+    logger.info(`Server running on port ${defaultConfig.serverPort}`);
 });

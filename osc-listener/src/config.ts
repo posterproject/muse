@@ -18,12 +18,19 @@ export interface Config {
     aggregateEndpoints?: AggregateConfig[];
 }
 
+// Parse command line arguments for debug level
+const args = process.argv.slice(2);
+const debugLevel = args.includes('--debug') ? DebugLevel.High :
+                   args.includes('--verbose') ? DebugLevel.Medium :
+                   args.includes('--quiet') ? DebugLevel.None :
+                   DebugLevel.Low;
+
 export const defaultConfig: Config = {
     localAddress: '0.0.0.0',
     localPort: 9005,
     updateRate: 1,
     serverPort: 3001,
-    debug: DebugLevel.Medium,
+    debug: debugLevel,
     recordData: false,
     recordFileName: 'raw-osc-data.csv'
 }; 

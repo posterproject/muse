@@ -67,3 +67,4 @@ dist/
 
 # Project specific
 osc-listener/raw-osc-data.csv
+logs/
