@@ -28,6 +28,7 @@ class OSCIntegration {
         }
         this.serverStarted = false;
         this.statusCheckInterval = null;
+        this.splatInterval = null; // Add interval for random splats
     }
 
     async start() {
@@ -70,6 +71,19 @@ class OSCIntegration {
             // Start periodic status checking
             this.statusCheckInterval = setInterval(() => this.checkServerStatus(), 3000);
             
+            // Start random splat generation every second
+            this.splatInterval = setInterval(() => {
+                console.log('Generating random splats...');
+                const amount = Math.floor(Math.random() * 5) + 1; // 1-5 splats
+                console.log(`Creating ${amount} splats`);
+                try {
+                    multipleSplats(amount);
+                    console.log('Splats created successfully');
+                } catch (error) {
+                    console.error('Error creating splats:', error);
+                }
+            }, 1000);
+            
             return true;
         } catch (error) {
             console.error('Error starting OSC integration:', error);
@@ -90,6 +104,9 @@ class OSCIntegration {
                 if (this.statusCheckInterval) {
                     clearInterval(this.statusCheckInterval);
                 }
+                if (this.splatInterval) {
+                    clearInterval(this.splatInterval);
+                }
             }
         } catch (error) {
             console.error('Error checking server status:', error);
@@ -97,6 +114,9 @@ class OSCIntegration {
             this.updateStatus('Connection error');
             if (this.statusCheckInterval) {
                 clearInterval(this.statusCheckInterval);
+            }
+            if (this.splatInterval) {
+                clearInterval(this.splatInterval);
             }
         }
     }
@@ -192,38 +212,42 @@ class OSCIntegration {
         // Available fluid simulation parameters and their ranges:
         // - CURL: Controls vorticity (swirling motion) [0-50]
         // - SPLAT_FORCE: Controls the force of new splats [1000-15000]
-        // - DENSITY_DISSIPATION: Controls how quickly dye dissipates [0.7-0.99]
-        // - PRESSURE: Controls pressure in the simulation [0.3-1.0]
+        // - DENSITY_DISSIPATION: Controls how quickly dye dissipates [0.0-4.0]
+        // - PRESSURE: Controls pressure in the simulation [0.0-1.0]
         // - VELOCITY_DISSIPATION: Controls how quickly velocity dissipates [0.0-4.0]
-        // - SPLAT_RADIUS: Controls the size of new splats [0.01-1.0]
+        // - SPLAT_RADIUS: Controls the size of new splats [0.1-1.0]
         
-        // Map wave data to fluid parameters
-        config.CURL = this.mapValue(this.waveData.alpha, 0, 1, 0, 50);
-        config.SPLAT_FORCE = this.mapValue(this.waveData.beta, 0, 1, 1000, 15000);
-        config.DENSITY_DISSIPATION = this.mapValue(this.waveData.gamma, 0, 1, 0.7, 0.99);
-        config.PRESSURE = this.mapValue(this.waveData.theta, 0, 1, 0.3, 1.0);
+        // Map wave data to fluid parameters with proper ranges
+        const newDensity = this.mapValue(this.waveData.alpha, 0, 1, 0.0, 4.0);
+        const newVelocity = this.mapValue(this.waveData.beta, 0, 1, 0.0, 4.0);
+        const newPressure = this.mapValue(this.waveData.gamma, 0, 1, 0.0, 1.0);
+        const newCurl = Math.floor(this.mapValue(this.waveData.theta, 0, 1, 0, 50));
+        const newSplatRadius = this.mapValue(this.waveData.delta, 0, 1, 0.1, 1.0);
+
+        // Update values using stored controller references
+        if (window.guiControllers) {
+            window.guiControllers.density.setValue(newDensity);
+            window.guiControllers.velocity.setValue(newVelocity);
+            window.guiControllers.pressure.setValue(newPressure);
+            window.guiControllers.curl.setValue(newCurl);
+            window.guiControllers.splatRadius.setValue(newSplatRadius);
+        }
 
         // Log mapped values
         console.log('Mapped values:', {
+            DENSITY_DISSIPATION: config.DENSITY_DISSIPATION.toFixed(2),
+            VELOCITY_DISSIPATION: config.VELOCITY_DISSIPATION.toFixed(2),
+            PRESSURE: config.PRESSURE.toFixed(2),
             CURL: config.CURL,
-            SPLAT_FORCE: config.SPLAT_FORCE,
-            DENSITY_DISSIPATION: config.DENSITY_DISSIPATION,
-            PRESSURE: config.PRESSURE
+            SPLAT_RADIUS: config.SPLAT_RADIUS.toFixed(2)
         });
-
-        // Create a splat based on delta wave
-        if (this.waveData.delta > 0.5) {
-            const x = Math.random();
-            const y = Math.random();
-            const dx = (Math.random() - 0.5) * this.waveData.delta * 1000;
-            const dy = (Math.random() - 0.5) * this.waveData.delta * 1000;
-            const color = [Math.random() * 255, Math.random() * 255, Math.random() * 255];
-            splat(x, y, dx, dy, color);
-        }
     }
 
     mapValue(value, inMin, inMax, outMin, outMax) {
-        return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+        // Clamp input value between inMin and inMax
+        const clampedValue = Math.max(inMin, Math.min(inMax, value));
+        // Map to output range
+        return ((clampedValue - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
     }
 
     updateStatus(status, showData = false) {
